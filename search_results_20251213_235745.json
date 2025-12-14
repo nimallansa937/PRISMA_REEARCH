@@ -1,0 +1,280 @@
+{
+  "query": "Mechanisms of cryptocurrency liquidation cascades",
+  "analysis": {
+    "original_query": "Mechanisms of cryptocurrency liquidation cascades",
+    "key_concepts": [
+      "mechanisms",
+      "cryptocurrency liquidation",
+      "cryptocurrency",
+      "liquidation"
+    ],
+    "entities": [],
+    "fields": [
+      "computer_science"
+    ],
+    "research_types": [
+      "general"
+    ],
+    "temporal_scope": null,
+    "is_comparative": false,
+    "comparative_entities": []
+  },
+  "strategy": {
+    "fields": [
+      "computer_science"
+    ],
+    "sources_used": [
+      "acm",
+      "ieee",
+      "arxiv",
+      "semantic_scholar",
+      "crossref"
+    ],
+    "queries_generated": 22
+  },
+  "papers": [
+    {
+      "paper_id": "4a31045ccd608bbb66243c115079be33c7b322b2",
+      "title": "Simulating Fire-Sales in a Banking and Shadow Banking System",
+      "authors": [
+        "Susanna Calimani",
+        "G. Halaj",
+        "D. Żochowski"
+      ],
+      "year": 2017,
+      "venue": "Social Science Research Network",
+      "venue_type": "journal",
+      "abstract": "We develop an agent based model of traditional banks and asset managers. Our aim is to investigate the channels of contagion of shocks to asset prices within and between the two financial sectors, including the effects of fire sales and their impact on financial institutions’ balance sheets. We take a structural approach to the price formation mechanism as in Bluhm, Faia and Kranen (2014) and introduce a clearing mechanism with an endogenous formation of asset prices. Both types of institutions hold liquid and illiquid assets and are funded via equity and deposits. Traditional banks are interconnected in the money market via mutual interbank claims, where the rate of return is endogenously determined through a tatonnement process. We show how in such a set-up an initial exogenous liquidity shock may lead to a fire-sale spiral. Banks, which are subject to capital and liquidity requirements, may be forced to sell an illiquid security, which impacts its, endogenously determined, market price. As the price of the security decreases, both agents update their equity and adjust their balance sheets by making decisions on whether to sell or buy the security. This endogenous process may trigger a cascade of sales leading to a fire-sale. We find that, first, mixed portfolios banks act as plague-spreader in a context of financial distress. Second, higher bank capital requirements may aggravate contagion since they may incentivise banks to hold similar assets, and choose mixed portfolios business model which is also characterized by lower levels of voluntary capital buffer. Third, asset managers absorb small liquidity shocks but they exacerbate contagion when liquid buffers are fully utilised. JEL Classification: C63, D85, G21, G23",
+      "doi": "10.2139/ssrn.3723393",
+      "arxiv_id": "",
+      "pubmed_id": "",
+      "url": "https://www.semanticscholar.org/paper/4a31045ccd608bbb66243c115079be33c7b322b2",
+      "citation_count": 14,
+      "influential_citation_count": 2,
+      "quality_score": 0.78,
+      "verified": true,
+      "source": "semantic_scholar",
+      "retrieved_at": "2025-12-13T23:56:42.351250"
+    },
+    {
+      "paper_id": "10.1016/j.jempfin.2021.04.005",
+      "title": "Volatility cascades in cryptocurrency trading",
+      "authors": [
+        "Nikola Gradojevic",
+        "Ilias Tsiakas"
+      ],
+      "year": 2021,
+      "venue": "Journal of Empirical Finance",
+      "venue_type": "journal",
+      "abstract": "",
+      "doi": "10.1016/j.jempfin.2021.04.005",
+      "arxiv_id": "",
+      "pubmed_id": "",
+      "url": "https://doi.org/10.1016/j.jempfin.2021.04.005",
+      "citation_count": 26,
+      "influential_citation_count": 0,
+      "quality_score": 0.7700000000000001,
+      "verified": true,
+      "source": "crossref",
+      "retrieved_at": "2025-12-13T23:57:44.182531"
+    },
+    {
+      "paper_id": "10.3905/jfi.2008.708844",
+      "title": "Forced Selling of Fallen Angels",
+      "authors": [
+        "Brent W. Ambrose",
+        "Nianyun (Kelly) Cai",
+        "Jean Helwege"
+      ],
+      "year": 2008,
+      "venue": "The Journal of Fixed Income",
+      "venue_type": "journal",
+      "abstract": "",
+      "doi": "10.3905/jfi.2008.708844",
+      "arxiv_id": "",
+      "pubmed_id": "",
+      "url": "https://doi.org/10.3905/jfi.2008.708844",
+      "citation_count": 50,
+      "influential_citation_count": 0,
+      "quality_score": 0.7400000000000001,
+      "verified": true,
+      "source": "crossref",
+      "retrieved_at": "2025-12-13T23:57:45.356555"
+    },
+    {
+      "paper_id": "10.1063/1.4915074",
+      "title": "Dimensional transition of energy cascades in stably stratified forced thin fluid layers",
+      "authors": [
+        "A. Sozza",
+        "G. Boffetta",
+        "P. Muratore-Ginanneschi",
+        "S. Musacchio"
+      ],
+      "year": 2015,
+      "venue": "Physics of Fluids",
+      "venue_type": "journal",
+      "abstract": "We study the effects of a stable density stratification on the turbulent dynamics of thin fluid layers forced at intermediate scales. By means of a set of high-resolution numerical simulations, performed within the Boussinesq approximation, we investigate how the stratification and confinement affect the mechanisms of kinetic and potential energy transfer. The detailed analysis of the statistics of the energy-dissipation rates and energy-exchange rates and of the spectral fluxes of potential and",
+      "doi": "10.1063/1.4915074",
+      "arxiv_id": "",
+      "pubmed_id": "",
+      "url": "https://doi.org/10.1063/1.4915074",
+      "citation_count": 36,
+      "influential_citation_count": 0,
+      "quality_score": 0.73,
+      "verified": true,
+      "source": "crossref",
+      "retrieved_at": "2025-12-13T23:57:45.356555"
+    },
+    {
+      "paper_id": "10.1109/icbc59979.2024.10634435",
+      "title": "Machine Learning in DeFi: Credit Risk Assessment and Liquidation Prediction",
+      "authors": [
+        "Georgios Palaiokrassas",
+        "Sandro Scherrers",
+        "Eftychia Makri",
+        "Leandros Tassiulas"
+      ],
+      "year": 2024,
+      "venue": "2024 IEEE International Conference on Blockchain and Cryptocurrency (ICBC)",
+      "venue_type": "proceedings-article",
+      "abstract": "",
+      "doi": "10.1109/icbc59979.2024.10634435",
+      "arxiv_id": "",
+      "pubmed_id": "",
+      "url": "https://doi.org/10.1109/icbc59979.2024.10634435",
+      "citation_count": 5,
+      "influential_citation_count": 0,
+      "quality_score": 0.7000000000000001,
+      "verified": true,
+      "source": "crossref",
+      "retrieved_at": "2025-12-13T23:57:44.182531"
+    },
+    {
+      "paper_id": "10.1093/jsh/shz064",
+      "title": "“Forced Selling,” Domesticity, and the Diffusion of Washing Machines in Interwar America",
+      "authors": [
+        "Peter Scott"
+      ],
+      "year": 2019,
+      "venue": "Journal of Social History",
+      "venue_type": "journal",
+      "abstract": "Abstract\n               This article explores the reasons behind the relatively slow diffusion of washing machines in interwar America and the rise and decline of a distinctive marketing strategy employed to accelerate diffusion: door-to-door sales. Washers represented a particularly difficult selling challenge, as many white-collar households (and, in the South, most white families) had already outsourced some, or all, of their washing, to a laundress or a commercial laundry. Consumer resistanc",
+      "doi": "10.1093/jsh/shz064",
+      "arxiv_id": "",
+      "pubmed_id": "",
+      "url": "https://doi.org/10.1093/jsh/shz064",
+      "citation_count": 1,
+      "influential_citation_count": 0,
+      "quality_score": 0.68,
+      "verified": true,
+      "source": "crossref",
+      "retrieved_at": "2025-12-13T23:57:45.356555"
+    },
+    {
+      "paper_id": "10.1016/s0925-4773(02)00333-7",
+      "title": "Gene expression cascades in pancreatic development",
+      "authors": [
+        "Maria E. Wilson",
+        "David Scheel",
+        "Michael S. German"
+      ],
+      "year": 2003,
+      "venue": "Mechanisms of Development",
+      "venue_type": "journal",
+      "abstract": "",
+      "doi": "10.1016/s0925-4773(02)00333-7",
+      "arxiv_id": "",
+      "pubmed_id": "",
+      "url": "https://doi.org/10.1016/s0925-4773(02)00333-7",
+      "citation_count": 281,
+      "influential_citation_count": 0,
+      "quality_score": 0.65,
+      "verified": true,
+      "source": "crossref",
+      "retrieved_at": "2025-12-13T23:57:44.182531"
+    },
+    {
+      "paper_id": "10.1103/physrevlett.81.2244",
+      "title": "Forced 2D Turbulence: Experimental Evidence of Simultaneous Inverse Energy and Forward Enstrophy Cascades",
+      "authors": [
+        "Maarten A. Rutgers"
+      ],
+      "year": 1998,
+      "venue": "Physical Review Letters",
+      "venue_type": "journal",
+      "abstract": "",
+      "doi": "10.1103/physrevlett.81.2244",
+      "arxiv_id": "",
+      "pubmed_id": "",
+      "url": "https://doi.org/10.1103/physrevlett.81.2244",
+      "citation_count": 157,
+      "influential_citation_count": 0,
+      "quality_score": 0.65,
+      "verified": true,
+      "source": "crossref",
+      "retrieved_at": "2025-12-13T23:57:45.356555"
+    },
+    {
+      "paper_id": "10.1109/icbc59979.2024.10634337",
+      "title": "Stability Analysis of Market-Making Mechanisms for Decentralized Cryptocurrency Exchanges",
+      "authors": [
+        "Yean-Fu Wen",
+        "Chien-Ming Huang"
+      ],
+      "year": 2024,
+      "venue": "2024 IEEE International Conference on Blockchain and Cryptocurrency (ICBC)",
+      "venue_type": "proceedings-article",
+      "abstract": "",
+      "doi": "10.1109/icbc59979.2024.10634337",
+      "arxiv_id": "",
+      "pubmed_id": "",
+      "url": "https://doi.org/10.1109/icbc59979.2024.10634337",
+      "citation_count": 1,
+      "influential_citation_count": 0,
+      "quality_score": 0.65,
+      "verified": true,
+      "source": "crossref",
+      "retrieved_at": "2025-12-13T23:57:44.182531"
+    },
+    {
+      "paper_id": "10.1016/j.bir.2020.05.007",
+      "title": "Information cascades, short-selling constraints, and herding in equity markets",
+      "authors": [
+        "Murat Tiniç",
+        "Muhammad Sabeeh Iqbal",
+        "Syed F. Mahmud"
+      ],
+      "year": 2020,
+      "venue": "Borsa Istanbul Review",
+      "venue_type": "journal",
+      "abstract": "",
+      "doi": "10.1016/j.bir.2020.05.007",
+      "arxiv_id": "",
+      "pubmed_id": "",
+      "url": "https://doi.org/10.1016/j.bir.2020.05.007",
+      "citation_count": 12,
+      "influential_citation_count": 0,
+      "quality_score": 0.62,
+      "verified": true,
+      "source": "crossref",
+      "retrieved_at": "2025-12-13T23:57:45.356555"
+    }
+  ],
+  "statistics": {
+    "raw_count": 203,
+    "unique_count": 117,
+    "final_count": 10,
+    "with_doi": 10,
+    "avg_citations": 58,
+    "avg_quality_score": 0.7,
+    "year_range": {
+      "min": 1998,
+      "max": 2024
+    },
+    "sources": [
+      "semantic_scholar",
+      "crossref"
+    ]
+  },
+  "timestamp": "2025-12-13T23:57:45.907823"
+}
