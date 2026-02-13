@@ -32,7 +32,7 @@ class DeduplicationAgent(Tier1Agent):
       - arXiv ID / PubMed ID
     """
 
-    def __init__(self, fuzzy_threshold: float = 0.90):
+    def __init__(self, fuzzy_threshold: float = 0.85):
         super().__init__(
             name="Deduplicator",
             description="Multi-field fuzzy deduplication"

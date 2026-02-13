@@ -338,6 +338,19 @@ class SystematicReviewProtocol:
         papers_dicts = dedup_result['papers']
         duplicates_removed = dedup_result['duplicates_removed']
 
+        # Track dedup in PRISMA - identify removed papers
+        kept_ids = set()
+        for p in papers_dicts:
+            pid = p.get('paper_id') or p.get('doi') or (p.get('title', '') or '')[:100]
+            kept_ids.add(pid)
+        removed_ids = []
+        for p in all_papers:
+            pid = p.get('paper_id') or p.get('doi') or (p.get('title', '') or '')[:100]
+            if pid and pid not in kept_ids:
+                removed_ids.append(pid)
+        if removed_ids:
+            self.prisma.mark_deduplicated(removed_ids)
+
         # Copy over extra fields from original dicts
         paper_id_map = {}
         for p in all_papers:
@@ -443,9 +456,12 @@ class SystematicReviewProtocol:
         screened = screen_result['included']
         excluded = screen_result['excluded']
 
-        # Track in PRISMA
+        # Track in PRISMA (use same ID fallback as add_identified)
+        def _prisma_id(p):
+            return p.get('paper_id') or p.get('doi') or (p.get('title', '') or '')[:100]
+
         for p in screened:
-            self.prisma.mark_screened(p.get('paper_id', ''), True)
+            self.prisma.mark_screened(_prisma_id(p), True)
         for p in excluded:
             reason = ExclusionReason.OFF_TOPIC
             cat = p.get('exclusion_category', '')
@@ -455,7 +471,7 @@ class SystematicReviewProtocol:
                 reason = ExclusionReason.LOW_QUALITY
             elif cat == 'wrong_type':
                 reason = ExclusionReason.WRONG_TYPE
-            self.prisma.mark_screened(p.get('paper_id', ''), False, reason,
+            self.prisma.mark_screened(_prisma_id(p), False, reason,
                                      p.get('screening_reason', ''))
 
         # Quality assessment (QualityTierAgent - Tier 2)
@@ -468,7 +484,7 @@ class SystematicReviewProtocol:
 
         # Mark all screened as eligible and included in PRISMA
         for p in screened:
-            pid = p.get('paper_id', '')
+            pid = _prisma_id(p)
             tier = p.get('quality_tier', 'C')
             self.prisma.mark_eligible(pid, True, p.get('citation_count', 0))
             self.prisma.mark_included(pid, tier)

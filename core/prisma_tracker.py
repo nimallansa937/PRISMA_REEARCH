@@ -194,14 +194,14 @@ class PRISMATracker:
         for r in self.records.values():
             stage_counts[r.current_stage.value] += 1
 
-        # Count excluded at each stage
+        # Count excluded at each stage (check key presence, not substring in timestamp)
         excluded_screening = sum(
             1 for r in self.records.values()
-            if r.exclusion_reason and 'screening' in r.timestamps.get('excluded_screening', '')
+            if r.exclusion_reason and 'excluded_screening' in r.timestamps
         )
         excluded_eligibility = sum(
             1 for r in self.records.values()
-            if r.exclusion_reason and 'eligibility' in r.timestamps.get('excluded_eligibility', '')
+            if r.exclusion_reason and 'excluded_eligibility' in r.timestamps
         )
 
         included = stage_counts.get('included', 0)

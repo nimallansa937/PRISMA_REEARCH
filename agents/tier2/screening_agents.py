@@ -136,8 +136,34 @@ Score guide: 0-3=exclude, 4-5=borderline (exclude), 6-7=relevant, 8-10=highly re
             return included, excluded
 
         except Exception as e:
-            print(f"  Screening failed: {e} - including all papers")
-            return papers, []
+            print(f"  ⚠️ LLM screening failed: {e} - applying heuristic screening")
+            # Heuristic fallback: exclude papers with no abstract and no title
+            included = []
+            excluded = []
+            query_terms = set(query.lower().split())
+            for paper in papers:
+                title = (paper.get('title') or '').lower()
+                abstract = (paper.get('abstract') or '').lower()
+                has_content = bool(title and len(title) > 10)
+                # Check if any query term appears in title or abstract
+                relevance = any(t in title or t in abstract for t in query_terms) if query_terms else True
+                if has_content and (relevance or abstract):
+                    paper['screening_score'] = 5.0
+                    paper['screening_reason'] = 'heuristic pass (LLM unavailable)'
+                    included.append(paper)
+                else:
+                    paper['screening_score'] = 2.0
+                    paper['screening_reason'] = 'heuristic exclude: no content or no relevance'
+                    paper['exclusion_category'] = 'no_abstract' if not abstract else 'off_topic'
+                    excluded.append(paper)
+
+            self.screening_log.append({
+                'batch_size': len(papers),
+                'included': len(included),
+                'excluded': len(excluded),
+                'method': 'heuristic_fallback'
+            })
+            return included, excluded
 
 
 class QualityTierAgent(Tier2Agent):
