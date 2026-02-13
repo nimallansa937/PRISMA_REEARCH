@@ -549,6 +549,93 @@ if st.session_state.get('running'):
     # --- Progress bar ---
     progress_bar = st.progress(0, text="Initializing systematic review...")
 
+    # --- Active Agents Panel ---
+    st.markdown("##### Active Sub-Agents")
+    agent_panel_slot = st.empty()
+
+    # Agent-to-phase mapping: which agents are active during each phase
+    _PHASE_AGENTS = {
+        'initialization': [],
+        'query_decomposition': [
+            ('T3', 'ResearchStrategist', 'DeepSeek'),
+        ],
+        'baseline_search': [
+            ('T1', 'DatabaseQueryAgent', 'Scripted'),
+        ],
+        'pagination': [
+            ('T1', 'DatabaseQueryAgent', 'Scripted'),
+        ],
+        'citation_crawling': [
+            ('T3', 'CitationCrawlStrategyAgent', 'DeepSeek'),
+            ('T1', 'DatabaseQueryAgent', 'Scripted'),
+        ],
+        'deduplication': [
+            ('T1', 'DeduplicationAgent', 'Scripted'),
+            ('T1', 'PRISMAComplianceAgent', 'Scripted'),
+        ],
+        'relevance_filtering': [
+            ('T2', 'GapDetectionAgent', 'Gemini'),
+            ('T3', 'AdaptiveStoppingAgent', 'DeepSeek'),
+            ('T2', 'QueryRefinementAgent', 'Gemini'),
+            ('T2', 'RelevanceFilterAgent', 'Gemini'),
+            ('T1', 'DeduplicationAgent', 'Scripted'),
+        ],
+        'screening': [
+            ('T2', 'ScreeningAgent', 'Gemini'),
+            ('T2', 'QualityTierAgent', 'Gemini'),
+            ('T1', 'PRISMAComplianceAgent', 'Scripted'),
+        ],
+        'clustering': [
+            ('T2', 'ClusterThemingAgent', 'Gemini'),
+        ],
+        'map_synthesis': [
+            ('T3', 'SynthesisCoordinatorAgent', 'DeepSeek'),
+            ('T3', 'PatternSynthesizer', 'DeepSeek'),
+        ],
+        'reduce_synthesis': [
+            ('T3', 'PatternSynthesizer', 'DeepSeek'),
+        ],
+        'deep_synthesis': [
+            ('T3', 'ContradictionAnalyzer', 'DeepSeek'),
+            ('T3', 'TemporalEvolutionAnalyzer', 'DeepSeek'),
+            ('T3', 'CausalChainExtractor', 'DeepSeek'),
+            ('T3', 'ConsensusQuantifier', 'DeepSeek'),
+            ('T3', 'PredictiveInsightsGenerator', 'DeepSeek'),
+        ],
+        'report_generation': [
+            ('T3', 'ReportComposerAgent', 'DeepSeek'),
+        ],
+        'complete': [],
+    }
+
+    # Tier badge colors
+    _TIER_COLORS = {
+        'T1': '#3B82F6',   # blue
+        'T2': '#F59E0B',   # amber
+        'T3': '#EF4444',   # red
+    }
+
+    def _render_agent_panel(phase_name: str):
+        """Render the agent activity panel as styled HTML badges."""
+        agents = _PHASE_AGENTS.get(phase_name, [])
+        if not agents:
+            html = '<div style="padding:6px 12px;color:#6B7280;font-size:13px;">No agents active</div>'
+        else:
+            badges = []
+            for tier, name, engine in agents:
+                color = _TIER_COLORS.get(tier, '#9CA3AF')
+                badges.append(
+                    f'<span style="display:inline-block;margin:3px 4px;padding:4px 10px;'
+                    f'border-radius:12px;font-size:12px;font-weight:600;'
+                    f'background:{color}22;color:{color};border:1px solid {color}55;">'
+                    f'{tier} {name} <span style="font-weight:400;opacity:0.7;">({engine})</span>'
+                    f'</span>'
+                )
+            html = f'<div style="padding:4px 0;">{"".join(badges)}</div>'
+        agent_panel_slot.markdown(html, unsafe_allow_html=True)
+
+    _render_agent_panel('initialization')
+
     # --- Live network graph ---
     st.markdown("##### Live Paper Discovery Network")
     graph_slot = st.empty()
@@ -646,6 +733,9 @@ if st.session_state.get('running'):
             metric_papers.metric("Papers Found", f"{papers_count:,}" if papers_count else "0")
             metric_elapsed.metric("Elapsed", f"{elapsed:.0f}s")
             metric_status.metric("Status", f"{overall:.0%}")
+
+            # Update active agents panel
+            _render_agent_panel(phase_name)
 
             # Track source counts from message
             msg_lower = message.lower()
@@ -843,9 +933,9 @@ elif 'results' in st.session_state:
     st.markdown("---")
 
     # ---- TABS ----
-    tab_report, tab_graph, tab_papers, tab_prisma, tab_clusters, tab_synthesis, tab_export = st.tabs([
+    tab_report, tab_graph, tab_papers, tab_prisma, tab_clusters, tab_synthesis, tab_agents, tab_export = st.tabs([
         "Report", "Network Graph", "Papers", "PRISMA Flow",
-        "Topic Clusters", "Synthesis", "Export"
+        "Topic Clusters", "Synthesis", "Agents", "Export"
     ])
 
     # ========== TAB: REPORT ==========
@@ -1174,6 +1264,78 @@ elif 'results' in st.session_state:
                 st.caption(f"Synthesis processed {len(chunk_summaries)} chunks via Map-Reduce pipeline")
         else:
             st.info("No synthesis results available. Run a review first.")
+
+    # ========== TAB: AGENTS ==========
+    with tab_agents:
+        st.subheader("20-Agent Architecture")
+        st.markdown("This review was powered by a **3-tier multi-agent system** "
+                     "with 20 specialized agents.")
+
+        # Tier 1
+        st.markdown("#### Tier 1 - Scripted Executors (No LLM)")
+        t1_data = [
+            {"Agent": "DatabaseQueryAgent", "Role": "Execute searches across 6 academic databases",
+             "Engine": "Scripted", "Phase": "Search, Pagination, Refinement"},
+            {"Agent": "DeduplicationAgent", "Role": "6-strategy fuzzy matching deduplication",
+             "Engine": "Scripted", "Phase": "Deduplication"},
+            {"Agent": "PRISMAComplianceAgent", "Role": "PRISMA methodology enforcement",
+             "Engine": "Scripted", "Phase": "Screening, Deduplication"},
+        ]
+        st.dataframe(pd.DataFrame(t1_data), width='stretch', hide_index=True)
+
+        # Tier 2
+        st.markdown("#### Tier 2 - Specialist Analysts (Gemini Primary)")
+        t2_data = [
+            {"Agent": "GapDetectionAgent", "Role": "Identify coverage gaps across dimensions",
+             "Engine": "Gemini", "Phase": "Adaptive Rounds"},
+            {"Agent": "QueryRefinementAgent", "Role": "Generate targeted refinement queries",
+             "Engine": "Gemini", "Phase": "Adaptive Rounds"},
+            {"Agent": "RelevanceFilterAgent", "Role": "LLM-based relevance scoring",
+             "Engine": "Gemini", "Phase": "Adaptive Rounds"},
+            {"Agent": "ScreeningAgent", "Role": "Inclusion/exclusion screening",
+             "Engine": "Gemini", "Phase": "Screening"},
+            {"Agent": "QualityTierAgent", "Role": "A/B/C evidence quality tiers",
+             "Engine": "Gemini", "Phase": "Screening"},
+            {"Agent": "ClusterThemingAgent", "Role": "Semantic cluster labeling",
+             "Engine": "Gemini", "Phase": "Clustering"},
+        ]
+        st.dataframe(pd.DataFrame(t2_data), width='stretch', hide_index=True)
+
+        # Tier 3
+        st.markdown("#### Tier 3 - Strategic Council (DeepSeek Primary)")
+        t3_data = [
+            {"Agent": "ResearchStrategist", "Role": "Query decomposition and dimension analysis",
+             "Engine": "DeepSeek", "Phase": "Query Decomposition"},
+            {"Agent": "PatternSynthesizer", "Role": "Cross-cutting pattern identification",
+             "Engine": "DeepSeek", "Phase": "Map/Reduce Synthesis"},
+            {"Agent": "ContradictionAnalyzer", "Role": "Detect conflicting findings",
+             "Engine": "DeepSeek", "Phase": "Deep Synthesis"},
+            {"Agent": "TemporalEvolutionAnalyzer", "Role": "Track emerging/declining themes",
+             "Engine": "DeepSeek", "Phase": "Deep Synthesis"},
+            {"Agent": "CausalChainExtractor", "Role": "Map causal relationships",
+             "Engine": "DeepSeek", "Phase": "Deep Synthesis"},
+            {"Agent": "ConsensusQuantifier", "Role": "Measure agreement levels",
+             "Engine": "DeepSeek", "Phase": "Deep Synthesis"},
+            {"Agent": "PredictiveInsightsGenerator", "Role": "Forecast research directions",
+             "Engine": "DeepSeek", "Phase": "Deep Synthesis"},
+            {"Agent": "AdaptiveStoppingAgent", "Role": "Multi-factor search termination",
+             "Engine": "DeepSeek", "Phase": "Adaptive Rounds"},
+            {"Agent": "SynthesisCoordinatorAgent", "Role": "Plan which agents to activate",
+             "Engine": "DeepSeek", "Phase": "Map Synthesis"},
+            {"Agent": "ReportComposerAgent", "Role": "Generate titles, summaries, recommendations",
+             "Engine": "DeepSeek", "Phase": "Report Generation"},
+            {"Agent": "CitationCrawlStrategyAgent", "Role": "Optimize seed selection and crawl depth",
+             "Engine": "DeepSeek", "Phase": "Citation Crawling"},
+        ]
+        st.dataframe(pd.DataFrame(t3_data), width='stretch', hide_index=True)
+
+        # Summary metrics
+        st.markdown("---")
+        ac1, ac2, ac3, ac4 = st.columns(4)
+        ac1.metric("Tier 1 Agents", "3", help="Scripted, no LLM")
+        ac2.metric("Tier 2 Agents", "6", help="Gemini primary")
+        ac3.metric("Tier 3 Agents", "11", help="DeepSeek primary")
+        ac4.metric("Total Agents", "20")
 
     # ========== TAB: EXPORT ==========
     with tab_export:

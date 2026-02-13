@@ -18,10 +18,10 @@ from collections import Counter, defaultdict
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from agents.base_agent import Tier2Agent
+from agents.base_agent import Tier3Agent
 
 
-class ContradictionAnalyzer(Tier2Agent):
+class ContradictionAnalyzer(Tier3Agent):
     """
     Identifies contradictions across papers and resolves them.
     Uses Gemini for semantic understanding of conflicts.
@@ -106,7 +106,7 @@ Only include REAL contradictions (not just different topics)."""
             return []
 
 
-class TemporalEvolutionAnalyzer(Tier2Agent):
+class TemporalEvolutionAnalyzer(Tier3Agent):
     """
     Analyzes how research themes have evolved over time.
     """
@@ -198,7 +198,7 @@ Identify trends: what's EMERGING (recent), what's DECLINING (older)?
             return {"error": str(e)}
 
 
-class CausalChainExtractor(Tier2Agent):
+class CausalChainExtractor(Tier3Agent):
     """
     Builds causal chains (A → B → C) from paper findings.
     """
@@ -272,7 +272,7 @@ Only include chains with ≥2 steps supported by papers."""
             return []
 
 
-class ConsensusQuantifier(Tier2Agent):
+class ConsensusQuantifier(Tier3Agent):
     """
     Builds evidence pyramids showing consensus strength.
     """
@@ -344,7 +344,7 @@ For each major theme, build an evidence pyramid:
             return {"error": str(e)}
 
 
-class PredictiveInsightsGenerator(Tier2Agent):
+class PredictiveInsightsGenerator(Tier3Agent):
     """
     Generates predictions about future research directions.
     """
