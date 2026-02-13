@@ -70,10 +70,11 @@ class SSRN(BaseSource):
                         url = f"https://ssrn.com/abstract={doi.split('.')[-1]}" if doi else ''
                         
                         paper = Paper(
+                            paper_id=doi or f"ssrn-{hash(title)}",
                             title=title,
                             authors=authors or ['Unknown'],
                             abstract=item.get('abstract', ''),
-                            year=year,
+                            year=year or 0,
                             doi=doi,
                             url=url,
                             source='ssrn',
@@ -92,3 +93,8 @@ class SSRN(BaseSource):
             print(f"⚠️ SSRN error: {e}")
         
         return papers[:limit]
+    
+    def get_paper(self, paper_id: str) -> Optional[Paper]:
+        """Get a specific paper by DOI (not fully supported for SSRN)"""
+        # SSRN doesn't have a public API for single paper lookup
+        return None

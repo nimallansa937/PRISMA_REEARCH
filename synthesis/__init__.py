@@ -1,1 +1,1 @@
-# Placeholder for synthesis module
+"""Synthesis module initialization"""
