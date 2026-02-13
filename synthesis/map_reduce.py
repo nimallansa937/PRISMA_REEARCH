@@ -118,37 +118,48 @@ class MapReduceSynthesizer:
 
         papers_text = ""
         for i, p in enumerate(papers):
-            title = (p.get('title') or 'Unknown')[:100]
+            title = (p.get('title') or 'Unknown')[:120]
             year = p.get('year', 'N/A')
-            abstract = (p.get('abstract') or '')[:300]
+            abstract = (p.get('abstract') or '')[:500]
             cites = p.get('citation_count', 0)
-            papers_text += f"\n[{i+1}] {title} ({year}, {cites} cites)\n    {abstract}\n"
+            source = p.get('source', 'unknown')
+            doi = p.get('doi', '')
+            venue = p.get('venue', '')
+            authors = ', '.join((p.get('authors') or ['Unknown'])[:3])
+            papers_text += (f"\n[{i+1}] {title} ({year}, {cites} cites, {source})"
+                           f"\n    Authors: {authors}"
+                           f"\n    Venue: {venue}" + (f" | DOI: {doi}" if doi else "") +
+                           f"\n    Abstract: {abstract}\n")
 
         system_prompt = """You are a research synthesis specialist performing systematic literature review.
-Extract key findings, methods, and themes from this batch of papers. Be comprehensive and specific."""
+Extract key findings, methods, and themes from this batch of papers.
+Be COMPREHENSIVE and SPECIFIC - cite paper numbers, mention concrete data/statistics from abstracts.
+Do NOT give vague summaries like "several papers studied X". Instead say "Paper [3] found that X increased by 40%"."""
 
         user_prompt = f"""Research Topic: {query}
 
-## Papers (Chunk {chunk_id + 1})
+## Papers (Chunk {chunk_id + 1}, {len(papers)} papers)
 {papers_text}
 
 ## Task
-Summarize this batch extracting:
-1. Key findings (specific claims, not vague)
-2. Research methods used
-3. Major themes/topics
-4. Any contradictions between papers
-5. Most important papers in this batch
+Analyze this batch thoroughly. For each finding, reference the specific paper(s).
+
+Extract:
+1. Key findings - specific claims with evidence (e.g., "Paper [2] demonstrated 95% accuracy using method X")
+2. Research methods used (quantitative, qualitative, mixed, survey, experiment, meta-analysis, etc.)
+3. Major themes/topics covered
+4. Any contradictions between papers (with paper numbers)
+5. Most important/highly-cited papers and why
 
 ## Output JSON
 {{
-  "key_findings": ["Finding 1 with specifics", "Finding 2"],
-  "methods_used": ["Method A", "Method B"],
-  "themes": ["Theme 1", "Theme 2"],
-  "contradictions": ["Paper X says A while Paper Y says B"],
+  "key_findings": ["Paper [1] found that X leads to Y with p<0.01", "Papers [3,5] both confirm Z"],
+  "methods_used": ["Randomized controlled trial (Papers 1,4)", "Survey (Paper 2)"],
+  "themes": ["Theme 1: description", "Theme 2: description"],
+  "contradictions": ["Paper [2] reports X increases Y while Paper [5] shows opposite effect"],
   "year_range": "2020-2024",
   "top_papers": [
-    {{"index": 1, "title": "...", "reason": "Why it's important"}}
+    {{"index": 1, "title": "...", "reason": "Highest cited, foundational framework"}}
   ]
 }}"""
 
@@ -361,16 +372,20 @@ Synthesize into a unified analysis. Find:
 
         papers_text = ""
         for i, p in enumerate(top_papers[:30]):
-            title = (p.get('title') or 'Unknown')[:80]
+            title = (p.get('title') or 'Unknown')[:100]
             year = p.get('year', 'N/A')
-            abstract = (p.get('abstract') or '')[:200]
+            abstract = (p.get('abstract') or '')[:400]
             cites = p.get('citation_count', 0)
-            papers_text += f"[{i+1}] {title} ({year}, {cites} cites)\n    {abstract}\n\n"
+            authors = ', '.join((p.get('authors') or ['Unknown'])[:3])
+            papers_text += f"[{i+1}] {title} ({year}, {cites} cites)\n    Authors: {authors}\n    {abstract}\n\n"
 
-        synthesis_text = json.dumps(self._reduced_to_dict(reduced), indent=2)[:3000]
+        synthesis_text = json.dumps(self._reduced_to_dict(reduced), indent=2)[:4000]
 
         system_prompt = """You are writing a comprehensive systematic review synthesis.
-Produce an executive-level research report combining quantitative patterns with qualitative insights."""
+Produce a DETAILED executive-level research report with SPECIFIC findings, statistics, and evidence.
+Do NOT give generic summaries. Each finding must reference concrete evidence from papers.
+Each debate must name the opposing positions with supporting paper evidence.
+Future directions must be specific and actionable, not generic "more research needed"."""
 
         user_prompt = f"""Research Topic: {query}
 
@@ -381,27 +396,30 @@ Produce an executive-level research report combining quantitative patterns with 
 {papers_text}
 
 ## Task
-Write the final synthesis covering:
-1. Executive summary (3-5 sentences)
-2. State of the field
-3. Key findings with evidence strength
-4. Unresolved debates
-5. Future research directions
-6. Practical implications
+Write a comprehensive final synthesis. Be SPECIFIC and DETAILED:
+
+1. Executive summary (5-7 sentences covering scope, key results, implications)
+2. State of the field (detailed paragraph, not just "growing area")
+3. Key findings - each with evidence strength rating AND specific paper references
+4. Unresolved debates - name the sides and the evidence for each
+5. Future research directions - specific, actionable gaps
+6. Practical implications - concrete applications for practitioners
+
+Generate AT LEAST 5 key findings, 3 debates, 5 future directions, and 4 implications.
 
 ## Output JSON
 {{
-  "executive_summary": "3-5 sentence overview",
-  "state_of_field": "Current state assessment",
+  "executive_summary": "5-7 sentence overview with specific scope and findings",
+  "state_of_field": "Detailed state assessment paragraph",
   "key_findings": [
-    {{"finding": "...", "evidence_strength": "STRONG/MEDIUM/WEAK", "paper_count": 50}}
+    {{"finding": "Specific finding with evidence detail", "evidence_strength": "STRONG/MEDIUM/WEAK", "paper_count": 50}}
   ],
   "unresolved_debates": [
-    {{"debate": "...", "sides": ["A", "B"], "current_evidence": "..."}}
+    {{"debate": "Specific question", "sides": ["Position A with evidence", "Position B with evidence"], "current_evidence": "Summary of where evidence leans"}}
   ],
-  "future_directions": ["direction1", "direction2"],
-  "practical_implications": ["implication1", "implication2"],
-  "confidence_assessment": "HIGH/MEDIUM/LOW"
+  "future_directions": ["Specific actionable direction 1", "direction 2"],
+  "practical_implications": ["Concrete implication for practitioners", "implication 2"],
+  "confidence_assessment": "HIGH/MEDIUM/LOW with explanation"
 }}"""
 
         schema = {

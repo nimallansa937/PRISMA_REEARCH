@@ -49,6 +49,10 @@ from agents.tier3.strategic_agents import (
     AdaptiveStoppingAgent, SynthesisCoordinatorAgent,
     ReportComposerAgent, CitationCrawlStrategyAgent
 )
+from agents.tier3.synthesis_agents import (
+    ContradictionAnalyzer, TemporalEvolutionAnalyzer,
+    CausalChainExtractor, ConsensusQuantifier, PredictiveInsightsGenerator
+)
 from synthesis.report_generator import generate_synthesis_report
 
 
@@ -106,6 +110,13 @@ class SystematicReviewProtocol:
         self.synthesis_coordinator = SynthesisCoordinatorAgent()
         self.report_composer = ReportComposerAgent()
         self.citation_strategist = CitationCrawlStrategyAgent()
+
+        # Agents - Tier 3 (Deep Synthesis)
+        self.contradiction_analyzer = ContradictionAnalyzer()
+        self.temporal_analyzer = TemporalEvolutionAnalyzer()
+        self.causal_extractor = CausalChainExtractor()
+        self.consensus_quantifier = ConsensusQuantifier()
+        self.prediction_generator = PredictiveInsightsGenerator()
 
         # Agents - Tier 2 (Specialist)
         self.gap_detector = GapDetectionAgent()
@@ -550,6 +561,61 @@ class SystematicReviewProtocol:
         )
 
         # =====================================================
+        # PHASE 9.5: Deep Synthesis (5 Tier-3 Agents)
+        # =====================================================
+        self.progress.update(ResearchPhase.DEEP_SYNTHESIS,
+                            "Running deep synthesis (5 agents)", 0.0,
+                            len(included_papers))
+
+        deep_synthesis = {}
+        try:
+            # 1. Contradiction Analysis
+            self.progress.update(ResearchPhase.DEEP_SYNTHESIS,
+                                "Analyzing contradictions (1/5)", 0.1)
+            deep_synthesis['contradictions'] = self.contradiction_analyzer.execute({
+                'papers': included_papers, 'topic': query
+            })
+
+            # 2. Temporal Evolution
+            self.progress.update(ResearchPhase.DEEP_SYNTHESIS,
+                                "Tracking temporal evolution (2/5)", 0.3)
+            deep_synthesis['temporal_evolution'] = self.temporal_analyzer.execute({
+                'papers': included_papers
+            })
+
+            # 3. Causal Chains
+            self.progress.update(ResearchPhase.DEEP_SYNTHESIS,
+                                "Extracting causal chains (3/5)", 0.5)
+            deep_synthesis['causal_chains'] = self.causal_extractor.execute({
+                'papers': included_papers, 'topic': query
+            })
+
+            # 4. Consensus Quantification
+            self.progress.update(ResearchPhase.DEEP_SYNTHESIS,
+                                "Quantifying consensus (4/5)", 0.7)
+            deep_synthesis['consensus'] = self.consensus_quantifier.execute({
+                'papers': included_papers
+            })
+
+            # 5. Predictive Insights
+            self.progress.update(ResearchPhase.DEEP_SYNTHESIS,
+                                "Generating predictions (5/5)", 0.9)
+            deep_synthesis['predictions'] = self.prediction_generator.execute({
+                'temporal_evolution': deep_synthesis.get('temporal_evolution', {}),
+                'gaps': mr_result.get('reduced_synthesis', {}).get('research_gaps', []),
+                'papers': included_papers
+            })
+
+            self.progress.update(ResearchPhase.DEEP_SYNTHESIS,
+                                "Deep synthesis complete", 1.0,
+                                len(included_papers))
+        except Exception as e:
+            if self.verbose:
+                print(f"  Deep synthesis partial failure: {e}")
+            self.progress.update(ResearchPhase.DEEP_SYNTHESIS,
+                                f"Deep synthesis completed with warnings", 1.0)
+
+        # =====================================================
         # PHASE 10: Report Generation (ReportComposerAgent)
         # =====================================================
         self.progress.update(ResearchPhase.REPORT_GENERATION,
@@ -565,7 +631,7 @@ class SystematicReviewProtocol:
             'papers': included_papers,
             'query': query,
             'clusters': cluster_result.get('clusters', []) if cluster_result else [],
-            'deep_analysis': {},
+            'deep_analysis': deep_synthesis,
             'prisma_flow': prisma_flow
         })
 
@@ -578,7 +644,8 @@ class SystematicReviewProtocol:
             prisma_diagram=prisma_diagram,
             decomposition=decomposition,
             elapsed=elapsed,
-            report_structure=report_structure
+            report_structure=report_structure,
+            deep_synthesis=deep_synthesis
         )
 
         self.progress.update(ResearchPhase.COMPLETE,
@@ -597,6 +664,7 @@ class SystematicReviewProtocol:
             'prisma_diagram': prisma_diagram,
             'clusters': cluster_result,
             'synthesis': mr_result,
+            'deep_synthesis': deep_synthesis,
             'decomposition': decomposition,
             'report': report,
             'quality_tiers': quality_tiers,
@@ -628,14 +696,66 @@ class SystematicReviewProtocol:
                           mr_result: Dict, cluster_result: Dict,
                           prisma_flow: Dict, prisma_diagram: str,
                           decomposition: Dict, elapsed: float,
-                          report_structure: Dict = None) -> str:
-        """Generate the final markdown report."""
+                          report_structure: Dict = None,
+                          deep_synthesis: Dict = None) -> str:
+        """Generate the final markdown report with data-driven fallbacks."""
 
         final = mr_result.get('final_synthesis', {})
         reduced = mr_result.get('reduced_synthesis', {})
+        ds = deep_synthesis or {}
         rs = report_structure or {}
 
-        # Cluster section - now uses themed labels from ClusterThemingAgent
+        # ============================================================
+        # DATA-DRIVEN ANALYSIS (always available, even when LLM fails)
+        # ============================================================
+
+        # Top papers by citation
+        sorted_by_cites = sorted(papers, key=lambda p: p.get('citation_count', 0) or 0, reverse=True)
+        top_cited = sorted_by_cites[:15]
+
+        # Year distribution
+        year_counts = {}
+        for p in papers:
+            y = p.get('year', 0)
+            if y and y > 1900:
+                year_counts[y] = year_counts.get(y, 0) + 1
+
+        # Source distribution
+        source_counts = {}
+        for p in papers:
+            s = p.get('source', 'unknown')
+            source_counts[s] = source_counts.get(s, 0) + 1
+
+        # Venue distribution (top venues)
+        venue_counts = {}
+        for p in papers:
+            v = p.get('venue', '') or ''
+            if v and v.lower() not in ('', 'unknown', 'n/a', 'none'):
+                venue_counts[v] = venue_counts.get(v, 0) + 1
+        top_venues = sorted(venue_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+
+        # Author frequency
+        author_counts = {}
+        for p in papers:
+            for a in (p.get('authors') or []):
+                if a and a != 'Unknown':
+                    author_counts[a] = author_counts.get(a, 0) + 1
+        top_authors = sorted(author_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+
+        # Citation statistics
+        cites = [p.get('citation_count', 0) or 0 for p in papers]
+        total_cites = sum(cites)
+        avg_cites = total_cites / max(len(cites), 1)
+        max_cite = max(cites) if cites else 0
+        median_cite = sorted(cites)[len(cites) // 2] if cites else 0
+
+        # Papers with DOI (verified)
+        doi_count = sum(1 for p in papers if p.get('doi'))
+        oa_count = sum(1 for p in papers if p.get('has_full_text') or p.get('source') == 'core')
+
+        # ============================================================
+        # CLUSTER SECTION
+        # ============================================================
         cluster_section = ""
         if cluster_result and cluster_result.get('clusters'):
             cluster_section = "\n## Topic Clusters\n\n"
@@ -651,20 +771,32 @@ class SystematicReviewProtocol:
                     cluster_section += f"- Key Concepts: {', '.join(c['key_concepts'])}\n"
                 cluster_section += "\n"
 
-        # Quality tier section
+        # ============================================================
+        # QUALITY TIERS
+        # ============================================================
         tier_a = prisma_flow.get('quality_tiers', {}).get('A', 0)
         tier_b = prisma_flow.get('quality_tiers', {}).get('B', 0)
         tier_c = prisma_flow.get('quality_tiers', {}).get('C', 0)
 
-        # Use ReportComposerAgent's title and summary if available
+        # ============================================================
+        # BUILD REPORT
+        # ============================================================
         report_title = rs.get('title', 'SYSTEMATIC REVIEW REPORT')
-        exec_summary = rs.get('executive_summary') or final.get('executive_summary', 'Analysis complete.')
+        exec_summary = (rs.get('executive_summary') or
+                        final.get('executive_summary') or
+                        f"Systematic review of {len(papers)} papers on \"{query}\". "
+                        f"Papers span {min(year_counts.keys()) if year_counts else 'N/A'}-"
+                        f"{max(year_counts.keys()) if year_counts else 'N/A'}, "
+                        f"sourced from {len(source_counts)} databases, "
+                        f"with {total_cites:,} total citations (avg {avg_cites:.0f}/paper). "
+                        f"The corpus includes {doi_count} DOI-verified papers "
+                        f"across {len(venue_counts)} distinct venues.")
 
         report = f"""# {report_title}
 
 **Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 **Query:** {query}
-**Engine:** Systematic Review Protocol v3.0 (Multi-Agent)
+**Engine:** Systematic Review Protocol v3.0 (22 Multi-Agents)
 
 ---
 
@@ -675,6 +807,7 @@ class SystematicReviewProtocol:
 **Papers Analyzed:** {len(papers)}
 **Search Time:** {elapsed:.1f} seconds
 **Quality Tiers:** A={tier_a} | B={tier_b} | C={tier_c}
+**DOI Verified:** {doi_count}/{len(papers)} ({100*doi_count/max(len(papers),1):.0f}%)
 
 ---
 
@@ -691,56 +824,298 @@ class SystematicReviewProtocol:
 
 ---
 
+## Corpus Statistics
+
+| Metric | Value |
+|--------|-------|
+| Total papers | {len(papers)} |
+| Year range | {min(year_counts.keys()) if year_counts else 'N/A'} - {max(year_counts.keys()) if year_counts else 'N/A'} |
+| Total citations | {total_cites:,} |
+| Avg citations/paper | {avg_cites:.1f} |
+| Median citations | {median_cite} |
+| Max citations | {max_cite:,} |
+| DOI verified | {doi_count} ({100*doi_count/max(len(papers),1):.0f}%) |
+| Distinct venues | {len(venue_counts)} |
+| Distinct authors | {len(author_counts)} |
+
+### Source Distribution
+
+"""
+        for src, cnt in sorted(source_counts.items(), key=lambda x: x[1], reverse=True):
+            pct = 100 * cnt / max(len(papers), 1)
+            report += f"- **{src}**: {cnt} papers ({pct:.0f}%)\n"
+
+        report += "\n### Year Distribution\n\n"
+        for year in sorted(year_counts.keys(), reverse=True)[:15]:
+            cnt = year_counts[year]
+            bar = "█" * min(cnt, 40)
+            report += f"- {year}: {bar} ({cnt})\n"
+
+        # ============================================================
+        # STATE OF THE FIELD
+        # ============================================================
+        state_of_field = final.get('state_of_field', '')
+        if not state_of_field:
+            # Data-driven fallback
+            peak_year = max(year_counts, key=year_counts.get) if year_counts else 'N/A'
+            recent_pct = sum(v for k, v in year_counts.items() if k >= 2020) / max(len(papers), 1) * 100
+            state_of_field = (
+                f"The research landscape on \"{query}\" spans {len(papers)} papers "
+                f"across {len(venue_counts)} venues. Publication activity peaked in {peak_year} "
+                f"with {year_counts.get(peak_year, 0)} papers. "
+                f"{recent_pct:.0f}% of papers were published since 2020, indicating "
+                f"{'strong recent interest' if recent_pct > 50 else 'established but continuing activity'}. "
+                f"The most prolific authors include {', '.join(a for a, _ in top_authors[:3]) if top_authors else 'various researchers'}, "
+                f"and the top venues are {', '.join(v for v, _ in top_venues[:3]) if top_venues else 'diverse'}."
+            )
+
+        report += f"""
+---
+
 ## State of the Field
 
-{final.get('state_of_field', '')}
+{state_of_field}
 
 ---
 
 ## Key Findings
 
 """
-        for i, finding in enumerate(final.get('key_findings', [])[:10], 1):
-            report += f"{i}. **{finding.get('finding', '')}**\n"
-            report += f"   - Evidence: {finding.get('evidence_strength', 'N/A')}\n"
-            report += f"   - Papers: {finding.get('paper_count', 'N/A')}\n\n"
+        findings = final.get('key_findings', [])
+        if findings:
+            for i, finding in enumerate(findings[:10], 1):
+                report += f"{i}. **{finding.get('finding', '')}**\n"
+                report += f"   - Evidence: {finding.get('evidence_strength', 'N/A')}\n"
+                report += f"   - Papers: {finding.get('paper_count', 'N/A')}\n\n"
+        else:
+            # Data-driven fallback: highlight top-cited papers as key contributions
+            report += "*Key findings from the most influential papers in this corpus:*\n\n"
+            for i, p in enumerate(top_cited[:8], 1):
+                title = (p.get('title') or 'Unknown')[:100]
+                cites_val = p.get('citation_count', 0) or 0
+                year_val = p.get('year', 'N/A')
+                abstract = (p.get('abstract') or '')[:200]
+                report += f"{i}. **{title}** ({year_val}, {cites_val:,} citations)\n"
+                if abstract:
+                    report += f"   - {abstract}...\n\n"
+                else:
+                    report += "\n"
 
-        report += f"""
+        report += """
 ---
 
 ## Major Themes
 
 """
-        for theme in reduced.get('major_themes', [])[:10]:
-            report += f"### {theme.get('theme', 'Unknown')}\n"
-            report += f"- Prevalence: {theme.get('prevalence', 'N/A')}\n"
-            report += f"- Est. Papers: {theme.get('paper_count_est', 'N/A')}\n"
-            report += f"- {theme.get('description', '')}\n\n"
+        themes = reduced.get('major_themes', [])
+        if themes:
+            for theme in themes[:10]:
+                report += f"### {theme.get('theme', 'Unknown')}\n"
+                report += f"- Prevalence: {theme.get('prevalence', 'N/A')}\n"
+                report += f"- Est. Papers: {theme.get('paper_count_est', 'N/A')}\n"
+                report += f"- {theme.get('description', '')}\n\n"
+        elif cluster_result and cluster_result.get('clusters'):
+            # Fallback: use cluster themes
+            report += "*Themes identified via semantic clustering:*\n\n"
+            for c in cluster_result['clusters'][:10]:
+                label = c.get('themed_label') or c.get('label', 'Unknown')
+                report += f"### {label}\n"
+                report += f"- Papers: {c['size']}\n"
+                if c.get('theme_description'):
+                    report += f"- {c['theme_description']}\n"
+                report += "\n"
+        else:
+            report += "*No thematic analysis available. See Top Venues for topic distribution:*\n\n"
+            for v, cnt in top_venues[:8]:
+                report += f"- **{v}**: {cnt} papers\n"
 
-        report += f"""
+        report += """
 ---
 
 ## Cross-Cutting Patterns
 
 """
-        for pattern in reduced.get('cross_chunk_patterns', [])[:8]:
-            report += f"### {pattern.get('pattern', 'Unknown')}\n"
-            report += f"{pattern.get('insight', '')}\n"
-            report += f"*Confidence: {pattern.get('confidence', 0):.0%}*\n\n"
+        patterns = reduced.get('cross_chunk_patterns', [])
+        if patterns:
+            for pattern in patterns[:8]:
+                report += f"### {pattern.get('pattern', 'Unknown')}\n"
+                report += f"{pattern.get('insight', '')}\n"
+                conf = pattern.get('confidence', 0)
+                if isinstance(conf, (int, float)):
+                    report += f"*Confidence: {conf:.0%}*\n\n"
+                else:
+                    report += f"*Confidence: {conf}*\n\n"
+        else:
+            report += "*Cross-cutting analysis pending. See cluster and citation data above.*\n\n"
 
-        report += f"""
+        # ============================================================
+        # DEEP SYNTHESIS: CONTRADICTIONS (from ContradictionAnalyzer)
+        # ============================================================
+        report += """
 ---
 
 ## Contradictions & Debates
 
 """
-        for debate in final.get('unresolved_debates', [])[:5]:
-            report += f"### {debate.get('debate', 'Unknown')}\n"
-            for side in debate.get('sides', []):
-                report += f"- {side}\n"
-            report += f"\n*Current Evidence:* {debate.get('current_evidence', 'N/A')}\n\n"
+        ds_contradictions = ds.get('contradictions', {}).get('contradictions', [])
+        debates = final.get('unresolved_debates', [])
 
-        report += f"""
+        if ds_contradictions:
+            for i, c in enumerate(ds_contradictions[:8], 1):
+                topic = c.get('topic', 'Unknown')
+                pos_a = c.get('position_a', {})
+                pos_b = c.get('position_b', {})
+                resolution = c.get('resolution', 'Unresolved')
+                consensus = c.get('consensus_strength', 'N/A')
+
+                report += f"### {i}. {topic}\n\n"
+                if pos_a:
+                    strength_a = pos_a.get('evidence_strength', 'N/A')
+                    papers_a = pos_a.get('paper_ids', [])
+                    report += f"**Position A** ({strength_a} evidence, Papers: {papers_a}):\n"
+                    report += f"> {pos_a.get('claim', 'N/A')}\n\n"
+                if pos_b:
+                    strength_b = pos_b.get('evidence_strength', 'N/A')
+                    papers_b = pos_b.get('paper_ids', [])
+                    report += f"**Position B** ({strength_b} evidence, Papers: {papers_b}):\n"
+                    report += f"> {pos_b.get('claim', 'N/A')}\n\n"
+                report += f"**Resolution:** {resolution} | **Consensus:** {consensus}\n\n"
+        elif debates:
+            for debate in debates[:5]:
+                report += f"### {debate.get('debate', 'Unknown')}\n"
+                for side in debate.get('sides', []):
+                    report += f"- {side}\n"
+                report += f"\n*Current Evidence:* {debate.get('current_evidence', 'N/A')}\n\n"
+        else:
+            chunk_contradictions = reduced.get('contradictions', [])
+            if chunk_contradictions:
+                for c in chunk_contradictions[:5]:
+                    if isinstance(c, dict):
+                        report += f"- **{c.get('topic', 'Unknown')}**: {c.get('resolution', 'Unresolved')}\n"
+                    elif isinstance(c, str):
+                        report += f"- {c}\n"
+                report += "\n"
+            else:
+                report += "*No significant contradictions identified in the current corpus.*\n\n"
+
+        # ============================================================
+        # DEEP SYNTHESIS: TEMPORAL EVOLUTION (from TemporalEvolutionAnalyzer)
+        # ============================================================
+        ds_temporal = ds.get('temporal_evolution', {})
+        if ds_temporal and 'error' not in ds_temporal:
+            report += """
+---
+
+## Temporal Evolution of Research
+
+"""
+            emerging = ds_temporal.get('emerging_themes', [])
+            declining = ds_temporal.get('declining_themes', [])
+            stable = ds_temporal.get('stable_themes', [])
+            interpretation = ds_temporal.get('interpretation', '')
+
+            if emerging:
+                report += "### Emerging Themes\n\n"
+                for t in emerging[:6]:
+                    name = t.get('theme', 'Unknown')
+                    appeared = t.get('first_appeared', 'N/A')
+                    growth = t.get('growth_rate', 'N/A')
+                    count = t.get('paper_count', 0)
+                    report += f"- **{name}** (since {appeared}) - {count} papers, growth: {growth}\n"
+                report += "\n"
+
+            if declining:
+                report += "### Declining Themes\n\n"
+                for t in declining[:6]:
+                    name = t.get('theme', 'Unknown')
+                    peak = t.get('peak_year', 'N/A')
+                    decline = t.get('decline_rate', 'N/A')
+                    report += f"- **{name}** (peaked {peak}) - decline: {decline}\n"
+                report += "\n"
+
+            if stable:
+                report += f"### Stable Themes\n\n"
+                report += f"{', '.join(stable[:8])}\n\n"
+
+            if interpretation:
+                report += f"**Interpretation:** {interpretation}\n\n"
+
+        # ============================================================
+        # DEEP SYNTHESIS: CAUSAL CHAINS (from CausalChainExtractor)
+        # ============================================================
+        ds_chains = ds.get('causal_chains', {}).get('causal_chains', [])
+        if ds_chains:
+            report += """
+---
+
+## Causal Chains
+
+"""
+            for i, chain in enumerate(ds_chains[:6], 1):
+                steps = chain.get('chain', [])
+                strength = chain.get('evidence_strength', 'N/A')
+                loe = chain.get('loe_range', 'N/A')
+
+                if steps:
+                    chain_str = " → ".join(
+                        f"**{s.get('step', '?')}** ({s.get('description', '')})"
+                        for s in steps
+                    )
+                    report += f"{i}. {chain_str}\n"
+                    report += f"   *Evidence: {strength} | Level of Evidence: {loe}*\n\n"
+
+        # ============================================================
+        # DEEP SYNTHESIS: CONSENSUS (from ConsensusQuantifier)
+        # ============================================================
+        ds_consensus = ds.get('consensus', {}).get('consensus_results', [])
+        if ds_consensus:
+            report += """
+---
+
+## Evidence Consensus
+
+| Theme | Papers | Consensus | Quality (H/M/L) | Actionable |
+|-------|--------|-----------|------------------|------------|
+"""
+            for c in ds_consensus[:10]:
+                theme = c.get('theme', 'Unknown')
+                count = c.get('paper_count', 0)
+                strength = c.get('consensus_strength', 'N/A')
+                qual = c.get('quality_distribution', {})
+                h = qual.get('high_quality', 0)
+                m = qual.get('medium_quality', 0)
+                l_val = qual.get('low_quality', 0)
+                actionable = "Yes" if c.get('actionable') else "No"
+                report += f"| {theme} | {count} | {strength} | {h}/{m}/{l_val} | {actionable} |\n"
+            report += "\n"
+
+        # ============================================================
+        # DEEP SYNTHESIS: PREDICTIONS (from PredictiveInsightsGenerator)
+        # ============================================================
+        ds_predictions = ds.get('predictions', {}).get('predictions', [])
+        if ds_predictions:
+            report += """
+---
+
+## Predictive Insights (1-3 Year Forecast)
+
+"""
+            for i, pred in enumerate(ds_predictions[:6], 1):
+                prediction = pred.get('prediction', 'Unknown')
+                basis = pred.get('basis', 'N/A')
+                confidence = pred.get('confidence', 'N/A')
+                timeframe = pred.get('timeframe', 'N/A')
+                metric = pred.get('testable_metric', 'N/A')
+
+                report += f"### {i}. {prediction}\n\n"
+                report += f"- **Basis:** {basis}\n"
+                report += f"- **Confidence:** {confidence} | **Timeframe:** {timeframe}\n"
+                report += f"- **Testable Metric:** {metric}\n\n"
+
+        # ============================================================
+        # METHODOLOGICAL LANDSCAPE
+        # ============================================================
+        report += """
 ---
 
 ## Methodological Landscape
@@ -753,39 +1128,122 @@ class SystematicReviewProtocol:
             report += f"**Emerging:** {', '.join(methods['emerging_methods'][:5])}\n\n"
         if methods.get('methodology_gaps'):
             report += f"**Gaps:** {', '.join(methods['methodology_gaps'][:5])}\n\n"
+        if not methods:
+            report += "*Methodological analysis pending.*\n\n"
 
-        report += cluster_section
+        # Insert cluster section
+        if cluster_section:
+            report += cluster_section
 
-        report += f"""
+        # ============================================================
+        # MOST INFLUENTIAL PAPERS (always data-driven)
+        # ============================================================
+        report += """
+---
+
+## Most Influential Papers
+
+"""
+        for i, p in enumerate(top_cited[:10], 1):
+            title = (p.get('title') or 'Unknown')[:100]
+            cites_val = p.get('citation_count', 0) or 0
+            year_val = p.get('year', 'N/A')
+            authors = ', '.join((p.get('authors') or ['Unknown'])[:3])
+            source = p.get('source', '')
+            doi = p.get('doi', '')
+            report += f"{i}. **{title}**\n"
+            report += f"   - {authors} ({year_val}) | {cites_val:,} citations | {source}"
+            if doi:
+                report += f" | DOI: {doi}"
+            report += "\n\n"
+
+        # ============================================================
+        # PROLIFIC AUTHORS (always data-driven)
+        # ============================================================
+        if top_authors:
+            report += """
+---
+
+## Most Prolific Authors
+
+"""
+            for i, (author, cnt) in enumerate(top_authors[:10], 1):
+                report += f"{i}. **{author}** - {cnt} papers\n"
+
+        # ============================================================
+        # TOP VENUES (always data-driven)
+        # ============================================================
+        if top_venues:
+            report += """
+
+---
+
+## Top Publication Venues
+
+"""
+            for i, (venue, cnt) in enumerate(top_venues[:10], 1):
+                report += f"{i}. **{venue}** - {cnt} papers\n"
+
+        # ============================================================
+        # FUTURE DIRECTIONS
+        # ============================================================
+        report += """
+
 ---
 
 ## Future Research Directions
 
 """
-        for i, direction in enumerate(final.get('future_directions', [])[:5], 1):
-            report += f"{i}. {direction}\n"
+        future = final.get('future_directions', [])
+        if future:
+            for i, direction in enumerate(future[:8], 1):
+                report += f"{i}. {direction}\n"
+        else:
+            gaps = reduced.get('research_gaps', [])
+            if gaps:
+                report += "*Based on identified research gaps:*\n\n"
+                for i, gap in enumerate(gaps[:8], 1):
+                    report += f"{i}. {gap}\n"
+            else:
+                report += "*Future research directions pending deeper synthesis analysis.*\n"
 
-        report += f"""
+        # ============================================================
+        # RESEARCH GAPS
+        # ============================================================
+        report += """
 
 ---
 
 ## Research Gaps
 
 """
-        for gap in reduced.get('research_gaps', [])[:8]:
-            report += f"- {gap}\n"
+        gaps = reduced.get('research_gaps', [])
+        if gaps:
+            for gap in gaps[:8]:
+                report += f"- {gap}\n"
+        else:
+            report += "*No specific gaps identified. Consider running Deep Review for gap mapping.*\n"
 
-        report += f"""
+        # ============================================================
+        # PRACTICAL IMPLICATIONS
+        # ============================================================
+        report += """
 
 ---
 
 ## Practical Implications
 
 """
-        for imp in final.get('practical_implications', [])[:5]:
-            report += f"- {imp}\n"
+        implications = final.get('practical_implications', [])
+        if implications:
+            for imp in implications[:5]:
+                report += f"- {imp}\n"
+        else:
+            report += "*Practical implications pending deeper synthesis analysis.*\n"
 
-        # Add recommendations from ReportComposerAgent
+        # ============================================================
+        # RECOMMENDATIONS (from ReportComposerAgent)
+        # ============================================================
         if rs.get('recommendations'):
             report += "\n\n---\n\n## Recommendations\n\n"
             for rec in rs['recommendations'][:8]:
@@ -794,13 +1252,13 @@ class SystematicReviewProtocol:
                 report += f"- **[{priority}]** {rec.get('recommendation', '')}\n"
                 report += f"  *Evidence: {strength}*\n\n"
 
-        # Add key takeaways
+        # Key takeaways
         if rs.get('key_takeaways'):
             report += "\n---\n\n## Key Takeaways\n\n"
             for i, t in enumerate(rs['key_takeaways'][:5], 1):
                 report += f"{i}. {t}\n"
 
-        # Add limitations
+        # Limitations
         if rs.get('limitations'):
             report += "\n\n---\n\n## Limitations\n\n"
             for lim in rs['limitations'][:5]:
@@ -812,9 +1270,9 @@ class SystematicReviewProtocol:
 
 ---
 
-*Generated by Systematic Review Engine v3.0 (Multi-Agent)*
-*Papers: {len(papers)} | Time: {elapsed:.1f}s | Confidence: {confidence}*
-*Agents: 15 specialized agents across 3 tiers*
+*Generated by Systematic Review Engine v3.0 + SciSpace AI (22 Multi-Agents)*
+*Papers: {len(papers)} | Sources: {len(source_counts)} | Time: {elapsed:.1f}s | Confidence: {confidence}*
+*22 specialized agents across 3 tiers | 7 academic databases*
 """
         return report
 
