@@ -1185,7 +1185,7 @@ elif 'results' in st.session_state:
 
                     # Show centroid paper if available
                     centroid = c.get('centroid_paper')
-                    if centroid:
+                    if centroid and isinstance(centroid, dict):
                         st.caption(f"Representative paper: *{centroid.get('title', '')}*")
         else:
             st.info("Clustering was not enabled or not enough papers for clustering.")
