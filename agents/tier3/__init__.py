@@ -1,4 +1,4 @@
-"""Tier 3 Agents - Strategic Council + Deep Analysis"""
+"""Tier 3 Agents - Strategic Council + Deep Analysis + SciSpace Capabilities"""
 
 from agents.tier3.synthesis_agents import (
     ContradictionAnalyzer,
@@ -13,6 +13,10 @@ from agents.tier3.strategic_agents import (
     ReportComposerAgent,
     CitationCrawlStrategyAgent
 )
+from agents.tier3.scispace_agents import (
+    PaperChatAgent,
+    DeepReviewAgent
+)
 
 __all__ = [
     'ContradictionAnalyzer',
@@ -24,4 +28,6 @@ __all__ = [
     'SynthesisCoordinatorAgent',
     'ReportComposerAgent',
     'CitationCrawlStrategyAgent',
+    'PaperChatAgent',
+    'DeepReviewAgent',
 ]

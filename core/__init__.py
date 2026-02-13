@@ -4,6 +4,8 @@ from .llm_client import LLMClient
 from .llm_domain_classifier import LLMDomainClassifier
 from .llm_filter_generator import LLMFilterGenerator
 from .llm_relevance_scorer import LLMRelevanceScorer
+from .semantic_search import SemanticSearchEngine
+from .fulltext_pipeline import FullTextPipeline, FullTextPaper
 
 __all__ = [
     'QueryAnalyzer',
@@ -11,5 +13,8 @@ __all__ = [
     'LLMClient',
     'LLMDomainClassifier',
     'LLMFilterGenerator',
-    'LLMRelevanceScorer'
+    'LLMRelevanceScorer',
+    'SemanticSearchEngine',
+    'FullTextPipeline',
+    'FullTextPaper',
 ]

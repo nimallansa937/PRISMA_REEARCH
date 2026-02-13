@@ -24,6 +24,10 @@ hdbscan>=0.8.33
 arxiv>=2.0.0
 biopython>=1.83
 
+# PDF extraction (for full-text pipeline)
+PyMuPDF>=1.23.0
+pdfplumber>=0.10.0
+
 # Web scraping (for Google Scholar fallback)
 beautifulsoup4>=4.12.0
 

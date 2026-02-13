@@ -16,6 +16,7 @@ from sources.crossref import CrossRef
 from sources.pubmed import PubMed
 from sources.ssrn import SSRN
 from sources.openalex import OpenAlex
+from sources.core_api import COREApi
 
 
 class DatabaseQueryAgent(Tier1Agent):
@@ -23,21 +24,22 @@ class DatabaseQueryAgent(Tier1Agent):
     Executes searches across academic databases.
     No LLM - purely scripted execution.
     """
-    
+
     def __init__(self):
         super().__init__(
             name="DatabaseQuery",
             description="Searches academic databases"
         )
-        
-        # Initialize data sources (6 sources now!)
+
+        # Initialize data sources (7 sources now!)
         self.sources = {
             'semantic_scholar': SemanticScholar(),
             'arxiv': ArXiv(),
             'crossref': CrossRef(),
             'pubmed': PubMed(),
             'ssrn': SSRN(),
-            'openalex': OpenAlex()
+            'openalex': OpenAlex(),
+            'core': COREApi(),
         }
         
         self.search_history: List[Dict] = []

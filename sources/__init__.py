@@ -3,6 +3,7 @@ from .semantic_scholar import SemanticScholar
 from .arxiv import ArXiv
 from .pubmed import PubMed
 from .crossref import CrossRef
+from .core_api import COREApi
 
 __all__ = [
     'BaseSource',
@@ -10,5 +11,6 @@ __all__ = [
     'SemanticScholar',
     'ArXiv',
     'PubMed',
-    'CrossRef'
+    'CrossRef',
+    'COREApi',
 ]

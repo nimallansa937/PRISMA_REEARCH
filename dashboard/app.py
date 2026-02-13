@@ -43,6 +43,7 @@ SOURCE_COLORS = {
     'pubmed': '#EF4444',            # red
     'crossref': '#8B5CF6',          # purple
     'ssrn': '#EC4899',              # pink
+    'core': '#F97316',              # orange (CORE API - 140M+ OA papers)
     'citation_crawl': '#6366F1',    # indigo
     'unknown': '#9CA3AF',           # gray
 }
@@ -933,9 +934,9 @@ elif 'results' in st.session_state:
     st.markdown("---")
 
     # ---- TABS ----
-    tab_report, tab_graph, tab_papers, tab_prisma, tab_clusters, tab_synthesis, tab_agents, tab_export = st.tabs([
+    tab_report, tab_graph, tab_papers, tab_prisma, tab_clusters, tab_synthesis, tab_scispace, tab_agents, tab_export = st.tabs([
         "Report", "Network Graph", "Papers", "PRISMA Flow",
-        "Topic Clusters", "Synthesis", "Agents", "Export"
+        "Topic Clusters", "Synthesis", "SciSpace AI", "Agents", "Export"
     ])
 
     # ========== TAB: REPORT ==========
@@ -1265,6 +1266,150 @@ elif 'results' in st.session_state:
         else:
             st.info("No synthesis results available. Run a review first.")
 
+    # ========== TAB: SCISPACE AI ==========
+    with tab_scispace:
+        st.subheader("SciSpace-Equivalent AI Capabilities")
+        st.markdown("""
+        These features replicate [SciSpace](https://scispace.com/) capabilities locally using your own LLMs.
+        """)
+
+        sci_col1, sci_col2 = st.columns(2)
+
+        with sci_col1:
+            st.markdown("#### Semantic Search")
+            st.markdown("""
+            Vector-based paper matching using sentence-transformers.
+            Finds papers by *meaning*, not just keywords.
+            """)
+            semantic_query = st.text_input(
+                "Semantic search query",
+                placeholder="e.g., mechanisms of neural plasticity in aging",
+                key="semantic_q"
+            )
+            if semantic_query and papers:
+                try:
+                    from core.semantic_search import SemanticSearchEngine
+                    engine = SemanticSearchEngine()
+                    engine.index_papers(papers)
+                    sem_results = engine.search(semantic_query, top_k=10)
+                    if sem_results:
+                        st.success(f"Found {len(sem_results)} semantically similar papers")
+                        for i, p in enumerate(sem_results, 1):
+                            score = p.get('semantic_score', 0)
+                            title = p.get('title', 'Unknown')[:80]
+                            st.markdown(f"**{i}.** [{title}] (score: {score:.3f})")
+                    else:
+                        st.info("No papers matched above the similarity threshold.")
+                except Exception as e:
+                    st.warning(f"Semantic search error: {e}")
+
+        with sci_col2:
+            st.markdown("#### Paper Chat (Q&A)")
+            st.markdown("""
+            Ask questions about any paper in your corpus.
+            Powered by DeepSeek/Gemini with full-text context.
+            """)
+            if papers:
+                paper_titles = [f"{p.get('title', 'Unknown')[:70]}" for p in papers[:50]]
+                selected_idx = st.selectbox(
+                    "Select paper to chat with",
+                    range(len(paper_titles)),
+                    format_func=lambda i: paper_titles[i],
+                    key="chat_paper_select"
+                )
+                chat_question = st.text_input(
+                    "Ask a question about this paper",
+                    placeholder="e.g., What methodology did they use?",
+                    key="chat_q"
+                )
+                if chat_question and selected_idx is not None:
+                    try:
+                        from agents.tier3.scispace_agents import PaperChatAgent
+                        chat_agent = PaperChatAgent()
+                        result = chat_agent.execute({
+                            'paper': papers[selected_idx],
+                            'question': chat_question
+                        })
+                        st.markdown(f"**Answer:** {result.get('answer', 'No answer generated')}")
+                        if result.get('confidence'):
+                            st.caption(f"Confidence: {result['confidence']}")
+                        follow_ups = result.get('follow_up_questions', [])
+                        if follow_ups:
+                            st.markdown("**Follow-up questions:**")
+                            for fq in follow_ups[:3]:
+                                st.markdown(f"- {fq}")
+                    except Exception as e:
+                        st.warning(f"Paper chat error: {e}")
+
+        st.markdown("---")
+        st.markdown("#### Deep Review (Multi-Pass Analysis)")
+        st.markdown("""
+        Iterative 5-pass literature review that progressively deepens analysis:
+        Theme Scan -> Deep Dive -> Cross-Synthesis -> Evidence Assessment -> Gap Mapping
+        """)
+        dr_col1, dr_col2 = st.columns([3, 1])
+        with dr_col1:
+            deep_topic = st.text_input(
+                "Deep review topic",
+                value=results.get('query', ''),
+                key="deep_review_topic"
+            )
+        with dr_col2:
+            review_depth = st.slider("Depth (passes)", 1, 5, 3, key="review_depth")
+
+        if st.button("Run Deep Review", key="run_deep_review"):
+            if papers and deep_topic:
+                with st.spinner(f"Running {review_depth}-pass deep review..."):
+                    try:
+                        from agents.tier3.scispace_agents import DeepReviewAgent
+                        reviewer = DeepReviewAgent()
+                        dr_result = reviewer.execute({
+                            'papers': papers[:50],
+                            'topic': deep_topic,
+                            'depth': review_depth
+                        })
+                        st.success(f"Deep review complete! {dr_result.get('passes_completed', 0)} passes.")
+
+                        # Show themes
+                        themes = dr_result.get('themes', [])
+                        if themes:
+                            st.markdown("**Major Themes:**")
+                            for t in themes:
+                                if isinstance(t, dict):
+                                    st.markdown(f"- **{t.get('theme', t.get('name', 'Unknown'))}**: "
+                                                f"{t.get('description', t.get('summary', ''))[:120]}")
+                                elif isinstance(t, str):
+                                    st.markdown(f"- {t}")
+
+                        # Show gaps
+                        gaps = dr_result.get('knowledge_gaps', {})
+                        if isinstance(gaps, dict):
+                            gap_list = gaps.get('gaps', [])
+                        elif isinstance(gaps, list):
+                            gap_list = gaps
+                        else:
+                            gap_list = []
+                        if gap_list:
+                            st.markdown("**Knowledge Gaps:**")
+                            for g in gap_list[:5]:
+                                if isinstance(g, dict):
+                                    st.markdown(f"- {g.get('gap', g.get('description', str(g)))[:120]}")
+                                elif isinstance(g, str):
+                                    st.markdown(f"- {g}")
+
+                    except Exception as e:
+                        st.error(f"Deep review error: {e}")
+            else:
+                st.warning("Need papers and a topic to run deep review.")
+
+        st.markdown("---")
+        st.markdown("#### Capabilities Summary")
+        cap_c1, cap_c2, cap_c3, cap_c4 = st.columns(4)
+        cap_c1.metric("Paper Sources", "7+", help="Semantic Scholar, OpenAlex, arXiv, PubMed, CrossRef, SSRN, CORE")
+        cap_c2.metric("Open Access Papers", "140M+", help="Via CORE API")
+        cap_c3.metric("AI Agents", "22", help="3 Tier-1 + 6 Tier-2 + 13 Tier-3")
+        cap_c4.metric("Review Depth", "5 passes", help="Theme->Dive->Cross->Evidence->Gaps")
+
     # ========== TAB: AGENTS ==========
     with tab_agents:
         st.subheader("20-Agent Architecture")
@@ -1416,29 +1561,38 @@ elif 'results' in st.session_state:
 # ============================================================
 else:
     st.markdown("""
-    ### Welcome to the Systematic Review Engine v2.0
+    ### Welcome to the Systematic Review Engine v2.0 + SciSpace AI
 
     This engine performs **PhD-level systematic literature reviews** at scale,
     processing up to **1000+ papers** with full PRISMA methodology.
+    Now with **SciSpace-equivalent AI capabilities** built in.
 
     ---
 
-    **10 Integrated Features:**
+    **13 Integrated Features:**
 
     | # | Feature | Description |
     |---|---------|-------------|
-    | 1 | Parallel Search | 6 databases searched simultaneously |
+    | 1 | Parallel Search | 7 databases searched simultaneously |
     | 2 | Bulk Harvesting | Pagination fetches hundreds per source |
     | 3 | Map-Reduce Synthesis | Handles 1000+ papers via chunked analysis |
     | 4 | Topic Clustering | Groups papers by semantic similarity |
     | 5 | Smart Caching | SQLite cache avoids duplicate API calls |
     | 6 | Adaptive Rounds | Stops when coverage plateaus |
     | 7 | Citation Crawling | Snowball sampling via reference networks |
-    | 8 | Full-Text Access | Open access PDF links via Unpaywall |
+    | 8 | Full-Text Access | PDF extraction via CORE/Unpaywall/arXiv/PMC |
     | 9 | Progress Tracking | Real-time phase-by-phase progress |
     | 10 | PRISMA Flow | Full PRISMA 2020 compliance tracking |
+    | 11 | Semantic Search | Vector-based paper matching (SciSpace) |
+    | 12 | Paper Chat | Q&A over individual papers (SciSpace) |
+    | 13 | Deep Review | 5-pass iterative literature analysis (SciSpace) |
 
     ---
+
+    **22 AI Agents across 3 Tiers:**
+    - **Tier 1** (3 agents) - Scripted executors (no LLM)
+    - **Tier 2** (6 agents) - Specialist analysts (Gemini primary)
+    - **Tier 3** (13 agents) - Strategic council + SciSpace AI (DeepSeek primary)
 
     **Supported LLM Providers:**
     - **Ollama** (local) - Free, unlimited, private. Best for bulk work.
@@ -1455,7 +1609,8 @@ else:
 # ============================================================
 st.markdown("---")
 st.caption(
-    f"Systematic Review Engine v2.0 | "
+    f"Systematic Review Engine v2.0 + SciSpace AI | "
+    f"22 Agents | 7 Sources | "
     f"Ollama {'online' if _ollama_ok else 'offline'} | "
     f"Powered by Ollama + DeepSeek + Gemini"
 )

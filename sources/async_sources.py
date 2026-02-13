@@ -793,3 +793,142 @@ class AsyncUnpaywall:
             if not session:
                 await _session.close()
         return results
+
+
+class AsyncCORE:
+    """Async CORE API for 140M+ open access papers with full text."""
+
+    BASE_URL = "https://api.core.ac.uk/v3"
+
+    def __init__(self):
+        self.api_key = settings.CORE_API_KEY if hasattr(settings, 'CORE_API_KEY') else ""
+        self.headers = {'Accept': 'application/json'}
+        if self.api_key:
+            self.headers['Authorization'] = f'Bearer {self.api_key}'
+
+    async def search(self, query: str, limit: int = 100, offset: int = 0,
+                     session: aiohttp.ClientSession = None) -> List[Dict]:
+        _session = session or aiohttp.ClientSession()
+        try:
+            params = {
+                'q': query,
+                'limit': min(limit, 100),
+                'offset': offset,
+                'scroll': 'false'
+            }
+            async with _session.get(
+                f"{self.BASE_URL}/search/works",
+                params=params, headers=self.headers,
+                timeout=aiohttp.ClientTimeout(total=30)
+            ) as resp:
+                if resp.status == 429:
+                    await asyncio.sleep(60)
+                    return []
+                if resp.status != 200:
+                    return []
+                data = await resp.json()
+                results = data.get('results', [])
+                papers = []
+                for item in results:
+                    p = self._parse(item)
+                    if p:
+                        papers.append(p)
+                return papers
+        except Exception:
+            return []
+        finally:
+            if not session:
+                await _session.close()
+
+    async def search_paginated(self, query: str, target: int = 200,
+                                session: aiohttp.ClientSession = None) -> List[Dict]:
+        all_papers = []
+        offset = 0
+        _session = session or aiohttp.ClientSession()
+        try:
+            while len(all_papers) < target:
+                papers = await self.search(query, 100, offset, _session)
+                if not papers:
+                    break
+                all_papers.extend(papers)
+                offset += len(papers)
+                if len(papers) < 100:
+                    break
+                await asyncio.sleep(6)  # Respect CORE free tier rate limit
+        finally:
+            if not session:
+                await _session.close()
+        return all_papers[:target]
+
+    async def get_full_text(self, paper_id: str,
+                             session: aiohttp.ClientSession = None) -> Optional[str]:
+        """Get full text content for a CORE paper."""
+        _session = session or aiohttp.ClientSession()
+        try:
+            async with _session.get(
+                f"{self.BASE_URL}/works/{paper_id}",
+                headers=self.headers,
+                timeout=aiohttp.ClientTimeout(total=30)
+            ) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+                return data.get('fullText', '')
+        except Exception:
+            return None
+        finally:
+            if not session:
+                await _session.close()
+
+    def _parse(self, item: dict) -> Optional[Dict]:
+        try:
+            title = item.get('title', '')
+            if not title or title == 'Unknown':
+                return None
+
+            authors = []
+            for author in item.get('authors', []):
+                if isinstance(author, dict):
+                    name = author.get('name', '')
+                elif isinstance(author, str):
+                    name = author
+                else:
+                    continue
+                if name:
+                    authors.append(name)
+
+            year = 0
+            year_published = item.get('yearPublished')
+            if year_published:
+                try:
+                    year = int(year_published)
+                except (ValueError, TypeError):
+                    pass
+
+            doi = item.get('doi', '') or ''
+            if doi.startswith('https://doi.org/'):
+                doi = doi[16:]
+
+            download_url = item.get('downloadUrl', '')
+            source_urls = item.get('sourceFulltextUrls', [])
+            source_url = source_urls[0] if source_urls else ''
+            url = download_url or source_url or ''
+
+            core_id = str(item.get('id', ''))
+
+            return {
+                'paper_id': core_id or doi or f"core-{hash(title)}",
+                'title': title,
+                'authors': authors or ['Unknown'],
+                'year': year or 0,
+                'abstract': item.get('abstract', '') or '',
+                'doi': doi,
+                'url': url,
+                'citation_count': item.get('citationCount', 0) or 0,
+                'source': 'core',
+                'venue': '',
+                'has_full_text': bool(item.get('fullText')),
+                'verified': bool(doi)
+            }
+        except Exception:
+            return None

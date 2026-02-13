@@ -1,15 +1,16 @@
 """
 Multi-Agent Research Protocol Orchestrator.
 
-Coordinates all 20 agents across three tiers:
+Coordinates all 22 agents across three tiers:
 - Tier 1 (3 agents): DatabaseQuery, Deduplication, PRISMACompliance
 - Tier 2 (6 agents): GapDetector, QueryRefiner, RelevanceFilter,
                       Screener, QualityAssessor, ClusterThemer
-- Tier 3 (11 agents): ResearchStrategist, PatternSynthesizer,
+- Tier 3 (13 agents): ResearchStrategist, PatternSynthesizer,
                        ContradictionAnalyzer, TemporalEvolutionAnalyzer,
                        CausalChainExtractor, ConsensusQuantifier,
                        PredictiveInsightsGenerator, AdaptiveStopper,
-                       SynthesisCoordinator, ReportComposer, CitationStrategist
+                       SynthesisCoordinator, ReportComposer, CitationStrategist,
+                       PaperChat, DeepReview
 """
 
 import json
@@ -45,6 +46,11 @@ from agents.tier3.strategic_agents import (
     ReportComposerAgent,
     CitationCrawlStrategyAgent
 )
+from agents.tier3.scispace_agents import PaperChatAgent, DeepReviewAgent
+
+# Core capabilities (SciSpace-equivalent)
+from core.semantic_search import SemanticSearchEngine
+from core.fulltext_pipeline import FullTextPipeline
 
 
 class MultiAgentProtocol:
@@ -67,7 +73,7 @@ class MultiAgentProtocol:
     """
 
     def __init__(self, max_refinement_rounds: int = 4, verbose: bool = True):
-        print("Initializing Multi-Agent Research Protocol (20 agents)...")
+        print("Initializing Multi-Agent Research Protocol (22 agents)...")
 
         self.max_rounds = max_refinement_rounds
         self.verbose = verbose
@@ -93,12 +99,20 @@ class MultiAgentProtocol:
         self.report_composer = ReportComposerAgent()
         self.citation_strategist = CitationCrawlStrategyAgent()
 
-        # Deep synthesis agents (Tier 2/3)
+        # Deep synthesis agents (Tier 3)
         self.contradiction_analyzer = ContradictionAnalyzer()
         self.temporal_analyzer = TemporalEvolutionAnalyzer()
         self.causal_extractor = CausalChainExtractor()
         self.consensus_quantifier = ConsensusQuantifier()
         self.prediction_generator = PredictiveInsightsGenerator()
+
+        # SciSpace-equivalent agents (Tier 3)
+        self.paper_chat = PaperChatAgent()
+        self.deep_reviewer = DeepReviewAgent()
+
+        # Core capabilities (SciSpace-equivalent)
+        self.semantic_search = SemanticSearchEngine()
+        self.fulltext_pipeline = FullTextPipeline()
 
         self._all_agents = [
             self.database_agent, self.dedup_agent, self.prisma_agent,
@@ -108,12 +122,15 @@ class MultiAgentProtocol:
             self.synthesis_coordinator, self.report_composer, self.citation_strategist,
             self.contradiction_analyzer, self.temporal_analyzer,
             self.causal_extractor, self.consensus_quantifier, self.prediction_generator,
+            self.paper_chat, self.deep_reviewer,
         ]
 
         print(f"  Tier 1: {sum(1 for a in self._all_agents if a.tier.value == 1)} scripted agents")
         print(f"  Tier 2: {sum(1 for a in self._all_agents if a.tier.value == 2)} specialist agents (Gemini)")
         print(f"  Tier 3: {sum(1 for a in self._all_agents if a.tier.value == 3)} strategic agents (DeepSeek)")
-        print(f"  Total:  {len(self._all_agents)} agents ready\n")
+        print(f"  Total:  {len(self._all_agents)} agents ready")
+        print(f"  + Semantic Search Engine (vector-based)")
+        print(f"  + Full-Text Pipeline (CORE/Unpaywall/arXiv/PMC)\n")
 
     def execute(self, query: str, domain: str = None) -> Dict:
         """Execute complete research protocol"""
@@ -145,13 +162,20 @@ class MultiAgentProtocol:
 
         baseline_result = self.database_agent.execute({
             'query': baseline_query,
-            'databases': ['semantic_scholar', 'arxiv'],
+            'databases': ['semantic_scholar', 'arxiv', 'core'],
             'limit': 30
         })
         all_papers = baseline_result['papers']
 
         if self.verbose:
-            print(f"    Found {len(all_papers)} papers\n")
+            print(f"    Found {len(all_papers)} papers")
+
+        # Build semantic search index for reranking
+        if all_papers:
+            self.semantic_search.index_papers(all_papers)
+            all_papers = self.semantic_search.rerank_with_query(all_papers, query)
+            if self.verbose:
+                print(f"    Semantic reranking applied\n")
 
         # ========== PHASE 3: ITERATIVE REFINEMENT (Tier 2 + 3) ==========
         if self.verbose:
@@ -416,6 +440,73 @@ class MultiAgentProtocol:
     def get_agent_status(self) -> List[Dict]:
         """Get status of all agents."""
         return [a.get_status() for a in self._all_agents]
+
+    def chat_with_paper(self, paper: Dict, question: str,
+                         chat_history: List[Dict] = None) -> Dict:
+        """
+        Chat with a specific paper (SciSpace-equivalent).
+        Ask questions about methodology, findings, limitations, etc.
+        """
+        if self.verbose:
+            print(f"\n  Paper Chat: {paper.get('title', 'Unknown')[:60]}...")
+            print(f"  Question: {question[:80]}...")
+
+        result = self.paper_chat.execute({
+            'paper': paper,
+            'question': question,
+            'chat_history': chat_history or []
+        })
+
+        if self.verbose:
+            confidence = result.get('confidence', 'N/A')
+            print(f"  Confidence: {confidence}")
+
+        return result
+
+    def run_deep_review(self, papers: List[Dict], topic: str,
+                         depth: int = 5, verbose: bool = True) -> Dict:
+        """
+        Run SciSpace-equivalent Deep Review (multi-pass iterative analysis).
+
+        Passes:
+        1. Theme Scan - Identify major themes
+        2. Deep Dive - Detailed per-theme analysis
+        3. Cross-Synthesis - Cross-cutting connections
+        4. Evidence Assessment - Rate evidence strength
+        5. Gap Mapping - Knowledge gaps + research agenda
+        """
+        if verbose:
+            print("\n" + "=" * 80)
+            print("  DEEP REVIEW (SciSpace-Equivalent)")
+            print("=" * 80)
+            print(f"  Papers: {len(papers)} | Depth: {depth}/5\n")
+
+        result = self.deep_reviewer.execute({
+            'papers': papers,
+            'topic': topic,
+            'depth': depth
+        })
+
+        if verbose:
+            passes_completed = result.get('passes_completed', 0)
+            themes = result.get('themes', [])
+            gaps = result.get('knowledge_gaps', {}).get('gaps', [])
+            print(f"\n  Passes completed: {passes_completed}")
+            print(f"  Themes found: {len(themes)}")
+            print(f"  Knowledge gaps: {len(gaps)}")
+            print("=" * 80 + "\n")
+
+        return result
+
+    def semantic_search_papers(self, query: str, papers: List[Dict] = None,
+                                top_k: int = 20) -> List[Dict]:
+        """
+        Semantic search over indexed papers (SciSpace-equivalent).
+        If papers provided, indexes them first.
+        """
+        if papers:
+            self.semantic_search.index_papers(papers)
+        return self.semantic_search.search(query, top_k=top_k)
 
     def export_results(self, results: Dict, filename: str = None) -> str:
         """Export results to JSON file"""

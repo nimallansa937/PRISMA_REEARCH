@@ -15,12 +15,14 @@ class Settings(BaseSettings):
     SEMANTIC_SCHOLAR_API_KEY: str = ""  # Optional, increases rate limit
     SERP_API_KEY: str = ""              # For Google Scholar
     NCBI_API_KEY: str = ""              # For PubMed
+    CORE_API_KEY: str = ""              # For CORE API (140M+ open access papers)
     
     # Rate limits (requests per minute)
     SEMANTIC_SCHOLAR_RATE_LIMIT: int = 100
     ARXIV_RATE_LIMIT: int = 20
     PUBMED_RATE_LIMIT: int = 10
     CROSSREF_RATE_LIMIT: int = 50
+    CORE_RATE_LIMIT: int = 10           # CORE free tier: 10/minute
     
     # Search parameters
     MIN_PAPERS_REQUIRED: int = 50
