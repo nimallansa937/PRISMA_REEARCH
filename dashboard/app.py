@@ -949,7 +949,128 @@ elif 'results' in st.session_state:
     with tab_report:
         report = results.get('report', '')
         if report:
-            st.markdown(report)
+            # Book-page CSS styling
+            st.markdown("""
+            <style>
+            .book-page {
+                max-width: 820px;
+                margin: 0 auto;
+                padding: 60px 72px;
+                background: #ffffff;
+                border: 1px solid #e0d8cc;
+                border-radius: 2px;
+                box-shadow: 0 2px 20px rgba(0,0,0,0.08), 0 0 1px rgba(0,0,0,0.1);
+                font-family: 'Georgia', 'Cambria', 'Times New Roman', serif;
+                color: #1a1a1a;
+                line-height: 1.8;
+                font-size: 15px;
+            }
+            .book-page h1 {
+                font-size: 28px;
+                font-weight: 700;
+                text-align: center;
+                margin-bottom: 6px;
+                letter-spacing: 0.5px;
+                color: #111;
+                border-bottom: 2px solid #333;
+                padding-bottom: 16px;
+            }
+            .book-page h2 {
+                font-size: 20px;
+                font-weight: 700;
+                margin-top: 32px;
+                margin-bottom: 12px;
+                color: #1a1a1a;
+                border-bottom: 1px solid #ccc;
+                padding-bottom: 6px;
+                letter-spacing: 0.3px;
+            }
+            .book-page h3 {
+                font-size: 16px;
+                font-weight: 600;
+                margin-top: 20px;
+                margin-bottom: 8px;
+                color: #2a2a2a;
+            }
+            .book-page p, .book-page li {
+                text-align: justify;
+                hyphens: auto;
+                color: #222;
+            }
+            .book-page strong {
+                color: #111;
+            }
+            .book-page hr {
+                border: none;
+                border-top: 1px solid #d5cec4;
+                margin: 28px 0;
+            }
+            .book-page table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 16px 0;
+                font-size: 14px;
+            }
+            .book-page th {
+                background: #f5f0ea;
+                border: 1px solid #d5cec4;
+                padding: 8px 12px;
+                text-align: left;
+                font-weight: 600;
+                font-size: 13px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                color: #444;
+            }
+            .book-page td {
+                border: 1px solid #e0d8cc;
+                padding: 7px 12px;
+            }
+            .book-page tr:nth-child(even) {
+                background: #faf8f5;
+            }
+            .book-page blockquote {
+                border-left: 3px solid #8b7d6b;
+                margin: 16px 0;
+                padding: 8px 20px;
+                color: #555;
+                background: #faf8f5;
+                font-style: italic;
+            }
+            .book-page code, .book-page pre {
+                font-family: 'Courier New', monospace;
+                font-size: 13px;
+                background: #f5f0ea;
+                padding: 2px 5px;
+                border-radius: 2px;
+            }
+            .book-page pre {
+                padding: 16px;
+                overflow-x: auto;
+                border: 1px solid #e0d8cc;
+            }
+            .book-page ul, .book-page ol {
+                padding-left: 24px;
+            }
+            .book-page li {
+                margin-bottom: 4px;
+            }
+            .book-page em {
+                color: #555;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+
+            # Convert markdown to HTML and wrap in book-page div
+            import markdown
+            report_html = markdown.markdown(
+                report,
+                extensions=['tables', 'fenced_code', 'nl2br']
+            )
+            st.markdown(
+                f'<div class="book-page">{report_html}</div>',
+                unsafe_allow_html=True
+            )
         else:
             st.info("No report generated")
 

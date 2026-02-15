@@ -45,6 +45,9 @@ uvicorn>=0.24.0
 # RAG Pipeline (vector store for retrieval-augmented generation)
 chromadb>=0.4.0
 
+# Report rendering (book-page format)
+markdown>=3.5.0
+
 # Testing
 pytest>=7.4.0
 pytest-cov>=4.1.0

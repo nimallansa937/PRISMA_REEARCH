@@ -880,20 +880,13 @@ class SystematicReviewProtocol:
 
         report = f"""# {report_title}
 
-**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-**Query:** {query}
-**Engine:** Systematic Review Protocol v3.0 (22 Multi-Agents)
+**{datetime.now().strftime('%B %d, %Y')}** · {len(papers)} papers · {elapsed:.0f}s · Quality A={tier_a} B={tier_b} C={tier_c}
 
 ---
 
 ## Executive Summary
 
 {exec_summary}
-
-**Papers Analyzed:** {len(papers)}
-**Search Time:** {elapsed:.1f} seconds
-**Quality Tiers:** A={tier_a} | B={tier_b} | C={tier_c}
-**DOI Verified:** {doi_count}/{len(papers)} ({100*doi_count/max(len(papers),1):.0f}%)
 
 ---
 
@@ -938,21 +931,17 @@ class SystematicReviewProtocol:
             report += f"- {year}: {bar} ({cnt})\n"
 
         # ============================================================
-        # STATE OF THE FIELD
+        # STATE OF THE FIELD (concise — stats already in Corpus Statistics)
         # ============================================================
         state_of_field = final.get('state_of_field', '')
         if not state_of_field:
-            # Data-driven fallback
+            # Concise narrative — no repeating stats shown above
             peak_year = max(year_counts, key=year_counts.get) if year_counts else 'N/A'
             recent_pct = sum(v for k, v in year_counts.items() if k >= 2020) / max(len(papers), 1) * 100
+            trend_label = 'rapidly growing' if recent_pct > 60 else ('actively evolving' if recent_pct > 40 else 'mature and established')
             state_of_field = (
-                f"The research landscape on \"{query}\" spans {len(papers)} papers "
-                f"across {len(venue_counts)} venues. Publication activity peaked in {peak_year} "
-                f"with {year_counts.get(peak_year, 0)} papers. "
-                f"{recent_pct:.0f}% of papers were published since 2020, indicating "
-                f"{'strong recent interest' if recent_pct > 50 else 'established but continuing activity'}. "
-                f"The most prolific authors include {', '.join(a for a, _ in top_authors[:3]) if top_authors else 'various researchers'}, "
-                f"and the top venues are {', '.join(v for v, _ in top_venues[:3]) if top_venues else 'diverse'}."
+                f"Research on \"{query}\" is **{trend_label}**, with peak output in "
+                f"**{peak_year}**. {recent_pct:.0f}% of the corpus is from 2020 onward."
             )
 
         report += f"""
