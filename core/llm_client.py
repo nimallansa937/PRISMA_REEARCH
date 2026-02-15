@@ -113,8 +113,10 @@ class LLMClient:
                     else:
                         print(f"  ⚠️  Ollama model '{self.ollama_model}' not found, auto-selecting...")
 
-                # Auto-detect best model for research
+                # Auto-detect best model for research (cloud frontier first)
                 preferred = [
+                    'gpt-oss:120b-cloud', 'deepseek-v3.1:671b-cloud',
+                    'kimi-k2.5:cloud', 'qwen3-coder:480b-cloud',
                     'deepseek-r1', 'qwen2.5', 'qwen3', 'llama3.1', 'llama3.3',
                     'gemma2', 'gemma3', 'phi4', 'mistral', 'command-r'
                 ]

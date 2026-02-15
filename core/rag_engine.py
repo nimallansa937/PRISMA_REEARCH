@@ -62,7 +62,8 @@ class RAGEngine:
     - generate_report_section(): Single section with dedicated retrieval
     """
 
-    def __init__(self, persist_dir: str = None, collection_name: str = "research_corpus"):
+    def __init__(self, persist_dir: str = None, collection_name: str = "research_corpus",
+                 ollama_model: str = None):
         self.persist_dir = persist_dir or ".cache/rag_store"
         self.collection_name = collection_name
         self.chunk_size = 2000  # words per chunk
@@ -75,53 +76,105 @@ class RAGEngine:
         # Embedding model (shared with SemanticSearchEngine)
         self._embed_model = None
 
-        # LLM config - auto-detect best available model
+        # LLM config - use user's model selection, or auto-detect best available
         self._ollama_url = "http://localhost:11434"
         self._llm_model = None
         self._llm_context_window = 4096  # default conservative
-        self._detect_best_model()
+        self._detect_best_model(preferred_model=ollama_model)
 
         # Stats
         self.total_chunks = 0
         self.total_papers = 0
         self.ingested_paper_ids = set()
 
-    def _detect_best_model(self):
-        """Auto-detect the best Ollama model for RAG generation."""
+    # Known context windows for cloud/large models
+    MODEL_CONTEXT_WINDOWS = {
+        'gpt-oss:120b-cloud': 131072,
+        'deepseek-v3.1:671b-cloud': 163840,
+        'kimi-k2.5:cloud': 131072,
+        'qwen3-coder:480b-cloud': 131072,
+        'deepseek-v3.1': 163840,
+        'kimi-k2.5': 131072,
+    }
+
+    def _detect_best_model(self, preferred_model: str = None):
+        """
+        Detect the best Ollama model for RAG generation.
+
+        If preferred_model is given (from dashboard selection), use it.
+        Otherwise auto-detect the best available cloud frontier model.
+        """
         try:
             resp = req.get(f"{self._ollama_url}/api/tags", timeout=3)
-            if resp.status_code == 200:
-                models = resp.json().get('models', [])
-                available = {m['name']: m for m in models}
+            if resp.status_code != 200:
+                return
+            models = resp.json().get('models', [])
+            available = {m['name']: m for m in models}
 
-                # Priority order: cloud frontier models first
-                preferred = [
-                    ('gpt-oss:120b-cloud', 131072),
-                    ('deepseek-v3.1:671b-cloud', 163840),
-                    ('kimi-k2.5:cloud', 131072),
-                    ('qwen3-coder:480b-cloud', 131072),
-                    ('qwen2.5:7b', 4096),
-                    ('gemma2:2b', 4096),
-                ]
+            if not available:
+                return
 
-                for model_name, ctx in preferred:
-                    # Check exact match or prefix match
-                    for avail_name in available:
-                        if avail_name == model_name or avail_name.startswith(model_name.split(':')[0]):
-                            if avail_name == model_name or model_name in avail_name:
-                                self._llm_model = avail_name
-                                self._llm_context_window = ctx
-                                print(f"  RAG Engine: using {self._llm_model} ({ctx//1024}K context)")
-                                return
+            # --- If user selected a specific model, use it ---
+            if preferred_model:
+                matched = self._match_model(preferred_model, available)
+                if matched:
+                    self._llm_model = matched
+                    self._llm_context_window = self._get_context_window(matched)
+                    print(f"  RAG Engine: using {self._llm_model} ({self._llm_context_window//1024}K context) [user-selected]")
+                    return
+                else:
+                    print(f"  RAG Engine: user model '{preferred_model}' not found, auto-selecting...")
 
-                # Fallback to first available
-                if models:
-                    self._llm_model = models[0]['name']
-                    self._llm_context_window = 4096
-                    print(f"  RAG Engine: fallback to {self._llm_model}")
+            # --- Auto-detect: cloud frontier models first ---
+            auto_priority = [
+                'gpt-oss:120b-cloud',
+                'deepseek-v3.1:671b-cloud',
+                'kimi-k2.5:cloud',
+                'qwen3-coder:480b-cloud',
+                'qwen2.5:7b',
+                'gemma2:2b',
+            ]
+
+            for model_name in auto_priority:
+                matched = self._match_model(model_name, available)
+                if matched:
+                    self._llm_model = matched
+                    self._llm_context_window = self._get_context_window(matched)
+                    print(f"  RAG Engine: using {self._llm_model} ({self._llm_context_window//1024}K context) [auto-detected]")
+                    return
+
+            # Fallback to first available
+            if models:
+                self._llm_model = models[0]['name']
+                self._llm_context_window = self._get_context_window(self._llm_model)
+                print(f"  RAG Engine: fallback to {self._llm_model}")
 
         except Exception as e:
             print(f"  RAG Engine: Ollama detection failed: {e}")
+
+    def _match_model(self, target: str, available: Dict) -> Optional[str]:
+        """Match a model name against available Ollama models."""
+        # Exact match
+        if target in available:
+            return target
+        # Prefix match (e.g. 'deepseek-v3.1' matches 'deepseek-v3.1:671b-cloud')
+        for name in available:
+            if name.startswith(target) or target.startswith(name.split(':')[0]):
+                if target in name or name in target:
+                    return name
+        return None
+
+    def _get_context_window(self, model_name: str) -> int:
+        """Get known context window for a model, or conservative default."""
+        # Check known models
+        for known, ctx in self.MODEL_CONTEXT_WINDOWS.items():
+            if known in model_name or model_name in known:
+                return ctx
+        # Cloud models generally have large context
+        if 'cloud' in model_name:
+            return 131072
+        # Local models default
+        return 4096
 
     def _get_collection(self):
         """Lazy-init ChromaDB collection."""

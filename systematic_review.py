@@ -143,8 +143,8 @@ class SystematicReviewProtocol:
         }
         self.unpaywall = AsyncUnpaywall()
 
-        # RAG Pipeline
-        self.rag_engine = RAGEngine()
+        # RAG Pipeline (pass user-selected model so it uses the same model as LLMClient)
+        self.rag_engine = RAGEngine(ollama_model=ollama_model)
         self.fulltext_pipeline = FullTextPipeline()
 
         # Synthesis engines
