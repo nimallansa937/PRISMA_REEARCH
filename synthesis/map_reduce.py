@@ -57,9 +57,10 @@ class MapReduceSynthesizer:
     we summarize chunks independently then synthesize the summaries.
     """
 
-    def __init__(self, chunk_size: int = 25, llm: LLMClient = None):
+    def __init__(self, chunk_size: int = 25, llm: LLMClient = None, rag_engine=None):
         self.chunk_size = chunk_size
         self.llm = llm or LLMClient(primary="gemini", fallback="deepseek")
+        self.rag_engine = rag_engine  # Optional RAG engine for evidence retrieval
 
     def synthesize(self, papers: List[Dict], query: str = "",
                    progress_callback=None) -> Dict:
@@ -114,7 +115,7 @@ class MapReduceSynthesizer:
         }
 
     def _map_chunk(self, papers: List[Dict], chunk_id: int, query: str) -> ChunkSummary:
-        """MAP phase: Summarize a single chunk of papers."""
+        """MAP phase: Summarize a single chunk of papers, with optional RAG evidence."""
 
         papers_text = ""
         for i, p in enumerate(papers):
@@ -131,6 +132,23 @@ class MapReduceSynthesizer:
                            f"\n    Venue: {venue}" + (f" | DOI: {doi}" if doi else "") +
                            f"\n    Abstract: {abstract}\n")
 
+        # RAG enhancement: retrieve full-text evidence for this chunk's topics
+        rag_evidence = ""
+        if self.rag_engine:
+            try:
+                # Build chunk-specific query from top paper titles
+                chunk_titles = ' '.join(
+                    (p.get('title') or '')[:50] for p in papers[:5]
+                )
+                chunk_query = f"{query} {chunk_titles}"
+                chunks = self.rag_engine.retrieve(chunk_query, top_k=4)
+                if chunks:
+                    rag_evidence = "\n## Full-Text Evidence (from RAG retrieval)\n"
+                    for rc in chunks:
+                        rag_evidence += rc.format_evidence(max_words=300) + "\n"
+            except Exception:
+                pass  # RAG enhancement is optional
+
         system_prompt = """You are a research synthesis specialist performing systematic literature review.
 Extract key findings, methods, and themes from this batch of papers.
 Be COMPREHENSIVE and SPECIFIC - cite paper numbers, mention concrete data/statistics from abstracts.
@@ -140,7 +158,7 @@ Do NOT give vague summaries like "several papers studied X". Instead say "Paper 
 
 ## Papers (Chunk {chunk_id + 1}, {len(papers)} papers)
 {papers_text}
-
+{rag_evidence}
 ## Task
 Analyze this batch thoroughly. For each finding, reference the specific paper(s).
 
@@ -368,7 +386,7 @@ Synthesize into a unified analysis. Find:
 
     def _final_synthesis(self, reduced: ReducedSynthesis,
                          top_papers: List[Dict], query: str) -> Dict:
-        """FINAL phase: Deep synthesis combining reduced analysis with top papers."""
+        """FINAL phase: Deep synthesis combining reduced analysis with top papers + RAG evidence."""
 
         papers_text = ""
         for i, p in enumerate(top_papers[:30]):
@@ -380,6 +398,18 @@ Synthesize into a unified analysis. Find:
             papers_text += f"[{i+1}] {title} ({year}, {cites} cites)\n    Authors: {authors}\n    {abstract}\n\n"
 
         synthesis_text = json.dumps(self._reduced_to_dict(reduced), indent=2)[:4000]
+
+        # RAG enhancement: retrieve deep evidence for final synthesis
+        rag_evidence_text = ""
+        if self.rag_engine:
+            try:
+                final_chunks = self.rag_engine.retrieve(query, top_k=25)
+                if final_chunks:
+                    rag_evidence_text = "\n## Full-Text Evidence (RAG Retrieved)\n\n"
+                    for rc in final_chunks:
+                        rag_evidence_text += rc.format_evidence(max_words=400) + "\n"
+            except Exception:
+                pass
 
         system_prompt = """You are writing a comprehensive systematic review synthesis.
 Produce a DETAILED executive-level research report with SPECIFIC findings, statistics, and evidence.
@@ -394,7 +424,7 @@ Future directions must be specific and actionable, not generic "more research ne
 
 ## Top 30 Most Important Papers
 {papers_text}
-
+{rag_evidence_text}
 ## Task
 Write a comprehensive final synthesis. Be SPECIFIC and DETAILED:
 

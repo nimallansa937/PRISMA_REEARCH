@@ -589,6 +589,10 @@ if st.session_state.get('running'):
         'clustering': [
             ('T2', 'ClusterThemingAgent', 'Gemini'),
         ],
+        'rag_indexing': [
+            ('T3', 'RAGEngine', 'gpt-oss:120b'),
+            ('T1', 'FullTextPipeline', 'Scripted'),
+        ],
         'map_synthesis': [
             ('T3', 'SynthesisCoordinatorAgent', 'DeepSeek'),
             ('T3', 'PatternSynthesizer', 'DeepSeek'),
@@ -923,20 +927,22 @@ elif 'results' in st.session_state:
     quality = results.get('quality_tiers', {})
 
     # ---- TOP METRICS ROW ----
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    c1, c2, c3, c4, c5, c6, c7 = st.columns(7)
     c1.metric("Papers Found", stats.get('total_identified', len(papers)))
     c2.metric("Included", stats.get('included', len(papers)))
     c3.metric("Duplicates Removed", stats.get('duplicates_removed', 0))
     c4.metric("Topic Clusters", stats.get('clusters', 0))
     c5.metric("Themes", stats.get('themes_found', 0))
+    rag_chunks_count = stats.get('rag_chunks', 0)
+    c7.metric("RAG Chunks", rag_chunks_count)
     c6.metric("Time", f"{stats.get('elapsed_seconds', 0):.0f}s")
 
     st.markdown("---")
 
     # ---- TABS ----
-    tab_report, tab_graph, tab_papers, tab_prisma, tab_clusters, tab_synthesis, tab_scispace, tab_agents, tab_export = st.tabs([
+    tab_report, tab_graph, tab_papers, tab_prisma, tab_clusters, tab_synthesis, tab_rag, tab_scispace, tab_agents, tab_export = st.tabs([
         "Report", "Network Graph", "Papers", "PRISMA Flow",
-        "Topic Clusters", "Synthesis", "SciSpace AI", "Agents", "Export"
+        "Topic Clusters", "Synthesis", "RAG Chat", "SciSpace AI", "Agents", "Export"
     ])
 
     # ========== TAB: REPORT ==========
@@ -1265,6 +1271,99 @@ elif 'results' in st.session_state:
                 st.caption(f"Synthesis processed {len(chunk_summaries)} chunks via Map-Reduce pipeline")
         else:
             st.info("No synthesis results available. Run a review first.")
+
+    # ========== TAB: RAG CHAT ==========
+    with tab_rag:
+        st.subheader("RAG Chat - Ask Your Corpus")
+        st.markdown("""
+        Ask questions about your research corpus. Answers are **grounded in full-text evidence**
+        retrieved from ChromaDB and generated using your frontier LLM.
+        """)
+
+        # Check if RAG engine is available
+        rag_engine = results.get('rag_engine')
+        rag_stats_data = results.get('rag_stats', {})
+
+        if rag_engine and rag_stats_data.get('total_chunks', 0) > 0:
+            # RAG stats display
+            rc1, rc2, rc3, rc4 = st.columns(4)
+            rc1.metric("Chunks Indexed", rag_stats_data.get('total_chunks', 0))
+            rc2.metric("Papers Indexed", rag_stats_data.get('total_papers', 0))
+            rag_model_info = rag_engine.get_stats()
+            rc3.metric("LLM Model", rag_model_info.get('llm_model', 'N/A')[:20])
+            rc4.metric("Evidence Budget", f"{rag_model_info.get('evidence_budget', 0)//1000}K tokens")
+
+            st.markdown("---")
+
+            # Initialize chat history
+            if 'rag_chat_history' not in st.session_state:
+                st.session_state.rag_chat_history = []
+
+            # Chat input
+            col_q, col_k = st.columns([4, 1])
+            with col_q:
+                rag_question = st.text_input(
+                    "Ask a research question:",
+                    placeholder="e.g., What are the main findings on...?",
+                    key="rag_question_input"
+                )
+            with col_k:
+                rag_top_k = st.slider("Evidence chunks", 5, 50, 20, key="rag_topk")
+
+            if st.button("Ask", key="rag_ask_btn", type="primary") and rag_question:
+                with st.spinner(f"Retrieving evidence & generating answer ({rag_model_info.get('llm_model', '')})..."):
+                    try:
+                        from agents.tier3.rag_chat_agent import RAGChatAgent
+                        chat_agent = RAGChatAgent(rag_engine=rag_engine)
+                        result = chat_agent.execute({
+                            'question': rag_question,
+                            'top_k': rag_top_k,
+                            'include_followups': True,
+                        })
+
+                        # Store in history
+                        st.session_state.rag_chat_history.append({
+                            'question': rag_question,
+                            'answer': result.get('answer', ''),
+                            'citations': result.get('citations', []),
+                            'chunks_used': result.get('chunks_used', 0),
+                            'follow_ups': result.get('follow_up_questions', []),
+                            'model': result.get('model', ''),
+                        })
+                    except Exception as e:
+                        st.error(f"RAG generation failed: {e}")
+
+            # Display chat history (most recent first)
+            for i, turn in enumerate(reversed(st.session_state.rag_chat_history)):
+                with st.container():
+                    st.markdown(f"**Q:** {turn['question']}")
+                    st.markdown(turn['answer'])
+
+                    # Citations
+                    if turn.get('citations'):
+                        with st.expander(f"Sources ({len(turn['citations'])} citations, {turn['chunks_used']} chunks used)"):
+                            for cite in turn['citations']:
+                                ref = cite.get('reference', '')
+                                title = cite.get('title', '')[:80]
+                                doi = cite.get('doi', '')
+                                st.markdown(f"- {ref} *{title}*" + (f" | DOI: {doi}" if doi else ""))
+                            st.caption(f"Model: {turn.get('model', 'unknown')}")
+
+                    # Follow-up suggestions
+                    if turn.get('follow_ups') and i == 0:  # Only show for latest
+                        st.markdown("**Suggested follow-ups:**")
+                        for fq in turn['follow_ups']:
+                            st.markdown(f"- {fq}")
+
+                    st.markdown("---")
+        else:
+            st.warning("RAG indexing not available for this review. Run a new review to enable RAG.")
+            st.markdown("""
+            **RAG Pipeline** downloads full-text papers, chunks them, and indexes them in ChromaDB.
+            This enables evidence-grounded Q&A using your frontier LLM (gpt-oss:120b-cloud).
+
+            To enable: Run a new systematic review - RAG indexing happens automatically in Phase 8.5.
+            """)
 
     # ========== TAB: SCISPACE AI ==========
     with tab_scispace:

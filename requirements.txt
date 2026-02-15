@@ -42,6 +42,9 @@ validators>=0.22.0
 fastapi>=0.104.0
 uvicorn>=0.24.0
 
+# RAG Pipeline (vector store for retrieval-augmented generation)
+chromadb>=0.4.0
+
 # Testing
 pytest>=7.4.0
 pytest-cov>=4.1.0

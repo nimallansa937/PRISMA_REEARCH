@@ -6,6 +6,7 @@ from .llm_filter_generator import LLMFilterGenerator
 from .llm_relevance_scorer import LLMRelevanceScorer
 from .semantic_search import SemanticSearchEngine
 from .fulltext_pipeline import FullTextPipeline, FullTextPaper
+from .rag_engine import RAGEngine
 
 __all__ = [
     'QueryAnalyzer',
@@ -17,4 +18,5 @@ __all__ = [
     'SemanticSearchEngine',
     'FullTextPipeline',
     'FullTextPaper',
+    'RAGEngine',
 ]

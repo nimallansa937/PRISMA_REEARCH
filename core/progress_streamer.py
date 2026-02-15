@@ -22,6 +22,7 @@ class ResearchPhase(Enum):
     SCREENING = "screening"
     RELEVANCE_FILTERING = "relevance_filtering"
     CLUSTERING = "clustering"
+    RAG_INDEXING = "rag_indexing"
     MAP_SYNTHESIS = "map_synthesis"
     REDUCE_SYNTHESIS = "reduce_synthesis"
     DEEP_SYNTHESIS = "deep_synthesis"
@@ -65,7 +66,8 @@ class ProgressStreamer:
             ResearchPhase.SCREENING: 0.07,
             ResearchPhase.RELEVANCE_FILTERING: 0.10,
             ResearchPhase.CLUSTERING: 0.05,
-            ResearchPhase.MAP_SYNTHESIS: 0.15,
+            ResearchPhase.RAG_INDEXING: 0.08,
+            ResearchPhase.MAP_SYNTHESIS: 0.12,
             ResearchPhase.REDUCE_SYNTHESIS: 0.07,
             ResearchPhase.DEEP_SYNTHESIS: 0.05,
             ResearchPhase.REPORT_GENERATION: 0.03,
@@ -154,6 +156,7 @@ class ProgressStreamer:
             ResearchPhase.SCREENING: '📋',
             ResearchPhase.RELEVANCE_FILTERING: '🎯',
             ResearchPhase.CLUSTERING: '🗂️ ',
+            ResearchPhase.RAG_INDEXING: '🧠',
             ResearchPhase.MAP_SYNTHESIS: '🗺️ ',
             ResearchPhase.REDUCE_SYNTHESIS: '🔬',
             ResearchPhase.DEEP_SYNTHESIS: '🧬',

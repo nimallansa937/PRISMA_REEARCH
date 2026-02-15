@@ -54,6 +54,8 @@ from agents.tier3.synthesis_agents import (
     CausalChainExtractor, ConsensusQuantifier, PredictiveInsightsGenerator
 )
 from synthesis.report_generator import generate_synthesis_report
+from core.rag_engine import RAGEngine
+from core.fulltext_pipeline import FullTextPipeline
 
 
 class SystematicReviewProtocol:
@@ -141,8 +143,12 @@ class SystematicReviewProtocol:
         }
         self.unpaywall = AsyncUnpaywall()
 
+        # RAG Pipeline
+        self.rag_engine = RAGEngine()
+        self.fulltext_pipeline = FullTextPipeline()
+
         # Synthesis engines
-        self.map_reduce = MapReduceSynthesizer(llm=self.llm)
+        self.map_reduce = MapReduceSynthesizer(llm=self.llm, rag_engine=self.rag_engine)
         self.clusterer = None  # Lazy init (needs sklearn)
 
         print("=" * 80)
@@ -541,6 +547,66 @@ class SystematicReviewProtocol:
                                     f"Clustering skipped: {e}", 1.0)
 
         # =====================================================
+        # PHASE 8.5: RAG Indexing (Full-Text Download + ChromaDB)
+        # =====================================================
+        rag_stats = {}
+        try:
+            self.progress.update(ResearchPhase.RAG_INDEXING,
+                                "Starting RAG indexing pipeline", 0.0,
+                                len(included_papers))
+
+            # Step 1: Download full texts for top papers (by citation count)
+            papers_for_fulltext = sorted(
+                included_papers,
+                key=lambda p: p.get('citation_count', 0) or 0,
+                reverse=True
+            )[:100]  # Top 100 by citations
+
+            self.progress.update(ResearchPhase.RAG_INDEXING,
+                                f"Downloading full texts ({len(papers_for_fulltext)} papers)",
+                                0.1, len(included_papers))
+
+            import nest_asyncio
+            nest_asyncio.apply()
+
+            loop = asyncio.get_event_loop()
+            full_text_papers = loop.run_until_complete(
+                self.fulltext_pipeline.batch_get_full_text(
+                    papers_for_fulltext,
+                    max_concurrent=5
+                )
+            )
+
+            ft_count = len(full_text_papers) if full_text_papers else 0
+            self.progress.update(ResearchPhase.RAG_INDEXING,
+                                f"Downloaded {ft_count} full texts",
+                                0.4, len(included_papers))
+
+            # Step 2: Index all papers into ChromaDB
+            def rag_progress(msg, pct):
+                self.progress.update(ResearchPhase.RAG_INDEXING,
+                                    msg, 0.4 + pct * 0.6,
+                                    len(included_papers))
+
+            rag_stats = self.rag_engine.ingest_papers(
+                papers=included_papers,
+                full_text_papers=full_text_papers,
+                progress_callback=rag_progress
+            )
+
+            self.progress.update(ResearchPhase.RAG_INDEXING,
+                                f"RAG indexed: {rag_stats.get('total_chunks', 0)} chunks "
+                                f"from {rag_stats.get('total_papers', 0)} papers "
+                                f"({ft_count} full-text)",
+                                1.0, len(included_papers))
+
+        except Exception as e:
+            if self.verbose:
+                print(f"  RAG indexing failed (non-fatal): {e}")
+            self.progress.update(ResearchPhase.RAG_INDEXING,
+                                f"RAG indexing skipped: {str(e)[:80]}", 1.0)
+
+        # =====================================================
         # PHASE 9: Coordinated Synthesis (SynthesisCoordinatorAgent)
         # =====================================================
         self.progress.update(ResearchPhase.MAP_SYNTHESIS,
@@ -684,6 +750,8 @@ class SystematicReviewProtocol:
             'decomposition': decomposition,
             'report': report,
             'quality_tiers': quality_tiers,
+            'rag_engine': self.rag_engine,
+            'rag_stats': rag_stats,
             'statistics': {
                 'total_identified': prisma_flow.get('identified', 0),
                 'duplicates_removed': prisma_flow.get('duplicates_removed', 0),
@@ -692,6 +760,8 @@ class SystematicReviewProtocol:
                 'elapsed_seconds': elapsed,
                 'clusters': cluster_result.get('n_clusters', 0) if cluster_result else 0,
                 'themes_found': len(mr_result.get('reduced_synthesis', {}).get('major_themes', [])),
+                'rag_chunks': rag_stats.get('total_chunks', 0),
+                'rag_fulltext_papers': rag_stats.get('total_papers', 0),
                 'cache_stats': self.cache.get_stats() if self.cache else {}
             },
             'progress_timeline': self.progress.get_timeline()
@@ -916,6 +986,52 @@ class SystematicReviewProtocol:
                     report += f"   - {abstract}...\n\n"
                 else:
                     report += "\n"
+
+        # ============================================================
+        # RAG-ENHANCED DEEP ANALYSIS (gpt-oss:120b-cloud grounded)
+        # ============================================================
+        rag_stats = self.rag_engine.get_stats() if self.rag_engine else {}
+        if rag_stats.get('total_chunks', 0) > 0:
+            report += """
+---
+
+## Deep Evidence Analysis (RAG-Grounded)
+
+*Generated using retrieval-augmented generation over full-text papers.*
+
+"""
+            try:
+                # Generate comprehensive RAG section using frontier model
+                rag_result = self.rag_engine.generate(
+                    query=f"Provide a comprehensive analysis of the key findings, methodological approaches, "
+                          f"and practical implications in the research on: {query}. "
+                          f"Include specific statistics, data points, and author citations.",
+                    top_k=30,
+                    temperature=0.3
+                )
+
+                rag_answer = rag_result.get('answer', '')
+                rag_citations = rag_result.get('citations', [])
+                rag_chunks_used = rag_result.get('chunks_used', 0)
+
+                if rag_answer and len(rag_answer) > 100:
+                    report += f"{rag_answer}\n\n"
+                    report += f"*Based on {rag_chunks_used} evidence chunks | "
+                    report += f"Model: {rag_result.get('model', 'unknown')}*\n\n"
+
+                    if rag_citations:
+                        report += "**Sources cited:**\n"
+                        for cite in rag_citations[:15]:
+                            ref = cite.get('reference', '')
+                            title = cite.get('title', '')[:80]
+                            doi = cite.get('doi', '')
+                            report += f"- {ref} {title}"
+                            if doi:
+                                report += f" (DOI: {doi})"
+                            report += "\n"
+                        report += "\n"
+            except Exception as e:
+                report += f"*RAG analysis unavailable: {str(e)[:100]}*\n\n"
 
         report += """
 ---
@@ -1282,13 +1398,20 @@ class SystematicReviewProtocol:
 
         confidence = rs.get('confidence_assessment') or final.get('confidence_assessment', 'N/A')
 
+        rag_info = ""
+        rag_s = self.rag_engine.get_stats() if self.rag_engine else {}
+        if rag_s.get('total_chunks', 0) > 0:
+            rag_info = (f" | RAG: {rag_s['total_chunks']} chunks, "
+                        f"{rag_s.get('total_papers', 0)} papers, "
+                        f"model: {rag_s.get('llm_model', 'N/A')}")
+
         report += f"""
 
 ---
 
-*Generated by Systematic Review Engine v3.0 + SciSpace AI (22 Multi-Agents)*
-*Papers: {len(papers)} | Sources: {len(source_counts)} | Time: {elapsed:.1f}s | Confidence: {confidence}*
-*22 specialized agents across 3 tiers | 7 academic databases*
+*Generated by Systematic Review Engine v3.0 + SciSpace AI + RAG Pipeline (22 Multi-Agents)*
+*Papers: {len(papers)} | Sources: {len(source_counts)} | Time: {elapsed:.1f}s | Confidence: {confidence}{rag_info}*
+*22 specialized agents across 3 tiers | 7 academic databases | ChromaDB vector store*
 """
         return report
 

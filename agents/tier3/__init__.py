@@ -17,6 +17,7 @@ from agents.tier3.scispace_agents import (
     PaperChatAgent,
     DeepReviewAgent
 )
+from agents.tier3.rag_chat_agent import RAGChatAgent
 
 __all__ = [
     'ContradictionAnalyzer',
@@ -30,4 +31,5 @@ __all__ = [
     'CitationCrawlStrategyAgent',
     'PaperChatAgent',
     'DeepReviewAgent',
+    'RAGChatAgent',
 ]
