@@ -61,9 +61,9 @@ class LLMClient:
                     api_key=self.deepseek_api_key,
                     base_url="https://api.deepseek.com"
                 )
-                print("  ✓ DeepSeek client initialized")
+                print("  [OK]DeepSeek client initialized")
             except ImportError:
-                print("  ⚠️  OpenAI package not installed for DeepSeek")
+                print("  [!]OpenAI package not installed for DeepSeek")
 
         # Gemini setup
         self.gemini_api_key = os.getenv("GEMINI_API_KEY")
@@ -73,18 +73,18 @@ class LLMClient:
                 import google.generativeai as genai
                 genai.configure(api_key=self.gemini_api_key)
                 self.gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
-                print("  ✓ Gemini client initialized")
+                print("  [OK]Gemini client initialized")
             except ImportError:
-                print("  ⚠️  google-generativeai package not installed")
+                print("  [!]google-generativeai package not installed")
 
         # Auto-fallback if primary not available
         if primary == "ollama" and not self.ollama_available:
             if self.deepseek_client:
                 self.primary = "deepseek"
-                print("  → Primary switched to DeepSeek (Ollama unavailable)")
+                print("  ->Primary switched to DeepSeek (Ollama unavailable)")
             elif self.gemini_model:
                 self.primary = "gemini"
-                print("  → Primary switched to Gemini (Ollama unavailable)")
+                print("  ->Primary switched to Gemini (Ollama unavailable)")
 
     def _init_ollama(self):
         """Detect Ollama and find the best available model."""
@@ -95,7 +95,7 @@ class LLMClient:
                 available_names = [m['name'] for m in models]
 
                 if not available_names:
-                    print("  ⚠️  Ollama running but no models installed")
+                    print("  [!]Ollama running but no models installed")
                     return
 
                 # If model specified, check it exists
@@ -108,10 +108,10 @@ class LLMClient:
                     if match:
                         self.ollama_model = match
                         self.ollama_available = True
-                        print(f"  ✓ Ollama: using {self.ollama_model}")
+                        print(f"  [OK]Ollama: using {self.ollama_model}")
                         return
                     else:
-                        print(f"  ⚠️  Ollama model '{self.ollama_model}' not found, auto-selecting...")
+                        print(f"  [!]Ollama model '{self.ollama_model}' not found, auto-selecting...")
 
                 # Auto-detect best model for research (cloud frontier first)
                 preferred = [
@@ -126,18 +126,18 @@ class LLMClient:
                         if name.startswith(pref):
                             self.ollama_model = name
                             self.ollama_available = True
-                            print(f"  ✓ Ollama: auto-selected {self.ollama_model}")
+                            print(f"  [OK]Ollama: auto-selected {self.ollama_model}")
                             return
 
                 # Fallback to first available model
                 self.ollama_model = available_names[0]
                 self.ollama_available = True
-                print(f"  ✓ Ollama: using {self.ollama_model}")
+                print(f"  [OK]Ollama: using {self.ollama_model}")
 
         except req.ConnectionError:
-            print("  ⚠️  Ollama not running (start with: ollama serve)")
+            print("  [!]Ollama not running (start with: ollama serve)")
         except Exception as e:
-            print(f"  ⚠️  Ollama detection failed: {e}")
+            print(f"  [!]Ollama detection failed: {e}")
 
     def get_available_providers(self) -> Dict[str, bool]:
         """Return which LLM providers are available."""
@@ -191,7 +191,7 @@ class LLMClient:
                 raise ValueError(f"LLM '{llm_to_use}' not available")
 
         except Exception as e:
-            print(f"  ⚠️  {llm_to_use} failed: {e}")
+            print(f"  [!]{llm_to_use} failed: {e}")
 
             # Try fallback chain: ollama -> deepseek -> gemini
             fallback_chain = ['ollama', 'deepseek', 'gemini']
@@ -372,7 +372,7 @@ def test_llm_client():
 
     try:
         response = client.generate_structured(system_prompt, user_prompt, schema)
-        print("✓ LLM Response:")
+        print("[OK] LLM Response:")
         print(json.dumps(response, indent=2))
     except Exception as e:
         print(f"❌ Test failed: {e}")
